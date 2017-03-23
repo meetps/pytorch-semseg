@@ -7,6 +7,7 @@ install:
     - travis_retry pip install -r requirements.txt --only-binary=scipy
     - pip install http://download.pytorch.org/whl/cu75/torch-0.1.10.post2-cp27-none-linux_x86_64.whl 
     - pip install torchvision
+    - pip install numpy upgrade
 
 script:
     - python train_camvid.py dummy
