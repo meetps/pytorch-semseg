@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class conv2DBatchNorm(nn.Module):
     def __init__(self, in_channels, k_size, n_filters, padding):
-        super().__init__()
+        super(conv2DBatchNorm, self).__init__()
 
         self.cb_unit = nn.Sequential(nn.Conv2d(in_channels, n_filters, k_size, padding=padding),
                                  nn.BatchNorm2d(n_filters),)
@@ -16,7 +16,7 @@ class conv2DBatchNorm(nn.Module):
 
 class conv2DBatchNormRelu(nn.Module):
     def __init__(self, in_channels, k_size, n_filters, padding):
-        super().__init__()
+        super(conv2DBatchNormRelu, self).__init__()
 
         self.cbr_unit = nn.Sequential(nn.Conv2d(in_channels, n_filters, k_size, padding=padding),
                                  nn.BatchNorm2d(n_filters),
@@ -29,7 +29,7 @@ class conv2DBatchNormRelu(nn.Module):
 
 class unetConv2(nn.Module):
     def __init__(self, in_size, out_size, is_batchnorm):
-        super().__init__()
+        super(unetConv2, self).__init__()
 
         if is_batchnorm:
             self.conv1 = nn.Sequential(nn.Conv2d(in_size, out_size, 3, 1, 1),
@@ -50,7 +50,7 @@ class unetConv2(nn.Module):
 
 class unetDown(nn.Module):
     def __init__(self, in_size, out_size, is_batchnorm):
-        super().__init__()
+        super(unetDown, self).__init__()
         self.conv = unetConv2(in_size, out_size, is_batchnorm)
         self.down = nn.MaxPool2d(2, 1)
 
@@ -62,7 +62,7 @@ class unetDown(nn.Module):
 
 class unetUp(nn.Module):
     def __init__(self, in_size, out_size, is_deconv):
-        super().__init__()
+        super(unetUp, self).__init__()
         self.conv = unetConv2(in_size, out_size)
         if is_deconv:
             self.up = nn.ConvTranspose2d(in_size, out_size, 2)
@@ -79,7 +79,7 @@ class unetUp(nn.Module):
 
 class segnetDown(nn.Module):
     def __init__(self, in_size, out_size):
-        super().__init__()
+        super(segnetDown, self).__init__()
         self.conv = conv2DBatchNormRelu(in_size, 3, out_size, 1)
         self.maxpool_with_argmax = nn.MaxPool2d(2, 1, return_indices=True)
 
@@ -91,7 +91,7 @@ class segnetDown(nn.Module):
 
 class segnetUp(nn.Module):
     def __init__(self, in_size, out_size):
-        super().__init__()
+        super(segnetUp, self).__init__()
         self.unpool = nn.MaxUnpool2d(2, 1)
         self.conv = conv2DBatchNorm(in_size, 3, out_size, 1)
 
