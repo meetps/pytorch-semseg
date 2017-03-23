@@ -2,7 +2,6 @@ import sys
 import torch
 import numpy as np
 import torch.nn as nn
-import scipy.misc as m 
 import torch.nn.functional as F
 
 from torch.autograd import Variable
