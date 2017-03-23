@@ -21,7 +21,7 @@ n_classes   = 12
 l_rate      = 0.0001
 
 class_weighting = [0.2595, 0.1826, 4.5640, 0.1417, 0.5051, 0.3826, 9.6446, 1.8418, 6.6823, 6.2478, 3.0, 7.3614]
-data_path = '/home/gpu_users/meetshah/camvid'
+data_path = '/home/gpu_users/meetshah/camvid/'
 
 
 def getRandomIdx(n_samples, batch_size):
@@ -33,25 +33,27 @@ def getRandomIdx(n_samples, batch_size):
 def train():
 
     model = unet(n_classes=n_classes, is_batchnorm=True, in_channels=3, is_deconv=True)
-    if torch.cuda.is_available():
-        model.cuda(0)
+    # if torch.cuda.is_available():
+        # model.cuda(0)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=l_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     x_train = np.load(data_path + 'x_train.npy')
-    y_train = np.argmax(np.load(data_path + 'y_train.npy'), axis=3)
+    y_train = np.argmax(np.load(data_path + 'x_train_label.npy'), axis=3)
 
     for epoch in range(n_epoch):
         idx = getRandomIdx(x_train.shape[0], batch_size)
-        images = x_train[idx]
-        labels = y_train[idx]
+        images = torch.from_numpy(x_train[idx]).float()
+        labels = torch.from_numpy(y_train[idx]).float()
 
-        if torch.cuda.is_available():
-            images = Variable(images.cuda(0))
-            labels = Variable(labels.cuda(0))
-        else:
-            images = Variable(images)
-            labels = Variable(labels)
+        images = images.permute(0,3,1,2)
+
+        # if torch.cuda.is_available():
+            # images = Variable(images.cuda(0))
+            # labels = Variable(labels.cuda(0))
+        # else:
+        images = Variable(images)
+        labels = Variable(labels)
 
         optimizer.zero_grad()
         outputs = model(images)

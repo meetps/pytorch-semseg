@@ -45,7 +45,8 @@ class unetConv2(nn.Module):
             self.conv2 = nn.Sequential(nn.Conv2d(out_size, out_size, 3, 1, 1),
                                        nn.ReLU(),)
     def forward(self, inputs):
-        outputs = self.conv2(self.conv1(inputs))
+        outputs = self.conv1(inputs)
+        outputs = self.conv2(outputs)
         return outputs
 
 
