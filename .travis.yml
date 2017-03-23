@@ -9,4 +9,4 @@ install:
     - pip install torchvision
 
 script:
-    - python train_camvid.py
+    - python train_camvid.py dummy
