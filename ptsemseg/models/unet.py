@@ -4,22 +4,26 @@ from utils import *
 
 class unet(nn.Module):
 
-    def __init__(self, n_classes=21, is_deconv=True, in_channels=3, is_batchnorm=True):
+    def __init__(self, feature_scale=4, n_classes=21, is_deconv=True, in_channels=3, is_batchnorm=True):
         super(unet, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels
         self.is_batchnorm = is_batchnorm
+        self.feature_scale = feature_scale
 
-        self.down1 = unetDown(self.in_channels, 64, self.is_batchnorm)
-        self.down2 = unetDown(64, 128, self.is_batchnorm)
-        self.down3 = unetDown(128, 256, self.is_batchnorm)
-        self.down4 = unetDown(256, 512, self.is_batchnorm)
-        self.center = unetConv2(512, 1024, self.is_batchnorm)
-        self.up4 = unetUp(1024, 512, self.is_deconv)
-        self.up3 = unetUp(512, 256, self.is_deconv)
-        self.up2 = unetUp(256, 128, self.is_deconv)
-        self.up1 = unetUp(128, 64, self.is_deconv)
-        self.final = nn.Conv2d(64, n_classes, 1)
+        filters = [64, 128, 256, 512, 1024]
+        filters = [x / self.feature_scale for x in filters]
+
+        self.down1 = unetDown(self.in_channels, filters[0], self.is_batchnorm)
+        self.down2 = unetDown(filters[0], filters[1], self.is_batchnorm)
+        self.down3 = unetDown(filters[1], filters[2], self.is_batchnorm)
+        self.down4 = unetDown(filters[2], filters[3], self.is_batchnorm)
+        self.center = unetConv2(filters[3], filters[4], self.is_batchnorm)
+        self.up4 = unetUp(filters[4], filters[3], self.is_deconv)
+        self.up3 = unetUp(filters[3], filters[2], self.is_deconv)
+        self.up2 = unetUp(filters[3], filters[2], self.is_deconv)
+        self.up1 = unetUp(filters[1], filters[0], self.is_deconv)
+        self.final = nn.Conv2d(filters[0], n_classes, 1)
 
     def forward(self, inputs):
         down1 = self.down1(inputs)
