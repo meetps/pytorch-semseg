@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -63,7 +64,7 @@ class unetDown(nn.Module):
 class unetUp(nn.Module):
     def __init__(self, in_size, out_size, is_deconv):
         super(unetUp, self).__init__()
-        self.conv = unetConv2(in_size, out_size)
+        self.conv = unetConv2(in_size, out_size, False)
         if is_deconv:
             self.up = nn.ConvTranspose2d(in_size, out_size, 2)
         else:
