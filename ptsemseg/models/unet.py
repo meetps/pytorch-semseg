@@ -21,7 +21,7 @@ class unet(nn.Module):
         self.center = unetConv2(filters[3], filters[4], self.is_batchnorm)
         self.up4 = unetUp(filters[4], filters[3], self.is_deconv)
         self.up3 = unetUp(filters[3], filters[2], self.is_deconv)
-        self.up2 = unetUp(filters[3], filters[2], self.is_deconv)
+        self.up2 = unetUp(filters[2], filters[1], self.is_deconv)
         self.up1 = unetUp(filters[1], filters[0], self.is_deconv)
         self.final = nn.Conv2d(filters[0], n_classes, 1)
 
