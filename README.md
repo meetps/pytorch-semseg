@@ -14,9 +14,10 @@
 ### DataLoaders implemented
 
 * [CamVid](http://mi.eng.cam.ac.uk/research/projects/VideoRec/CamVid/)
+* [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
 
 ### TODO
 
 * Implement FCN16s, FCN8s
+* Implement MaskRCNN
 * Add support for loading pretrained VGG16 weights for Segnet and FCNxs
-* Add loader for PascalVOC 2012
