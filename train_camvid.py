@@ -1,7 +1,7 @@
+import sys
 import torch
 import numpy as np
 import torch.nn as nn
-import scipy.misc as m 
 import torch.nn.functional as F
 
 from torch.autograd import Variable
@@ -28,16 +28,18 @@ class_weighting = [0.2595, 0.1826, 4.5640, 0.1417, 0.5051, 0.3826, 9.6446, 1.841
 data_path = '/home/gpu_users/meetshah/camvid'
 
 
-def train(model='segnet'):
-
-    camVid = camvidLoader(data_path, is_transform=True)
-    trainloader = data.DataLoader(camVid, batch_size=batch_size, num_workers=4)
+def train(model):
 
     if model == 'unet':
         model = unet(feature_scale=feature_scale, n_classes=n_classes,
                      is_batchnorm=True, in_channels=3, is_deconv=True)
     if model == 'segnet':
         model = segnet(n_classes=n_classes, in_channels=3, is_unpooling=True)
+    else:
+        return 0
+
+    camVid = camvidLoader(data_path, is_transform=True)
+    trainloader = data.DataLoader(camVid, batch_size=batch_size, num_workers=4)
 
     if torch.cuda.is_available():
         model.cuda(0)
@@ -77,4 +79,5 @@ def train(model='segnet'):
     torch.save(model, "unet_camvid_" + str(feature_scale) + ".pkl")
 
 if __name__ == '__main__':
-    train()
+    model = sys.argv[1]
+    train(model)
