@@ -1,16 +1,19 @@
 import sys
 import torch
+import visdom
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 
 from torch.autograd import Variable
 from torch.utils import data
 
 from ptsemseg.models.segnet import segnet 
-from ptsemseg.models.fcn import fcn32s
+from ptsemseg.models.fcn import fcn32s, fcn16s, fcn8s
 from ptsemseg.models.unet import unet
 from ptsemseg.loader.pascal_voc_loader import pascalVOCLoader
+from ptsemseg.loss import cross_entropy2d
 
 
 '''
@@ -21,7 +24,7 @@ img_cols      = 224
 batch_size    = 1
 n_epoch       = 10000
 n_classes     = 21
-l_rate        = 0.001
+l_rate        = 1e-10
 feature_scale = 1
 
 data_path = '/home/gpu_users/meetshah/segdata/pascal/VOCdevkit/VOC2012'
@@ -41,13 +44,32 @@ def train(model):
                        in_channels=3,
                        is_unpooling=True)
 
-    camVid = pascalVOCLoader(data_path, is_transform=True, img_size=img_rows)
-    trainloader = data.DataLoader(camVid, batch_size=batch_size, num_workers=4)
+    if model == 'fcn32':
+        model = fcn32s(n_classes=n_classes)
+        vgg16 = models.vgg16(pretrained=True)
+        model.init_vgg16_params(vgg16)
+
+    if model == 'fcn16':
+        model = fcn16s(n_classes=n_classes)
+        vgg16 = models.vgg16(pretrained=True)
+        model.init_vgg16_params(vgg16)
+
+    if model == 'fcn8':
+        model = fcn8s(n_classes=n_classes)
+        vgg16 = models.vgg16(pretrained=True)
+        model.init_vgg16_params(vgg16)
+
+    pascal = pascalVOCLoader(data_path, is_transform=True, img_size=img_rows)
+    trainloader = data.DataLoader(pascal, batch_size=batch_size, num_workers=4)
 
     if torch.cuda.is_available():
         model.cuda(0)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=l_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=l_rate, momentum=0.99, weight_decay=5e-4)
+
+    test_image, test_segmap = pascal[0]
+    test_image = Variable(test_image.unsqueeze(0).cuda(0))
+    vis = visdom.Visdom()
 
     for epoch in range(n_epoch):
         for i, (images, labels) in enumerate(trainloader):
@@ -61,11 +83,7 @@ def train(model):
             optimizer.zero_grad()
             outputs = model(images)
 
-            outputs = outputs.permute(0, 2, 3, 1)
-            outputs = outputs.resize(img_cols*img_rows, n_classes)
-            labels = labels.resize(img_cols*img_rows)
-
-            loss = F.cross_entropy(outputs, labels)
+            loss = cross_entropy2d(outputs, labels)
 
             loss.backward()
             optimizer.step()
@@ -73,9 +91,14 @@ def train(model):
             if (i+1) % 20 == 0:
                 print("Epoch [%d/%d] Loss: %.4f" % (epoch+1, n_epoch, loss.data[0]))
 
-        # if (epoch+1) % 20 == 0:
-            # l_rate /= 3
-            # optimizer = torch.optim.Adam(model.parameters(), lr=l_rate)
+        test_output = model(test_image)
+        predicted = pascal.decode_segmap(test_output[0].cpu().data.numpy().argmax(0))
+        target = pascal.decode_segmap(test_segmap.numpy())
+
+        vis.image(test_image[0].cpu().data.numpy(), opts=dict(title='Input' + str(epoch)))
+        vis.image(np.transpose(target, [2,0,1]), opts=dict(title='GT' + str(epoch)))
+        vis.image(np.transpose(predicted, [2,0,1]), opts=dict(title='Predicted' + str(epoch)))
+
 
     torch.save(model, "unet_voc_" + str(feature_scale) + ".pkl")
 
