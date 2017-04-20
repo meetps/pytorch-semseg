@@ -4,12 +4,13 @@
 
 ## Semantic Segmentation Algorithms Implemented in PyTorch
 
+This repository aims at mirroring the semantic segmentation architectures as mentioned in respective papers. 
 
 ### Networks implemented
 
-* [Segnet](https://arxiv.org/abs/1511.00561) 
-* [FCN32s](https://arxiv.org/abs/1411.4038)
-* [U-Net](https://arxiv.org/abs/1505.04597)
+* [Segnet](https://arxiv.org/abs/1511.00561) - With Unpooling using Maxpool indices
+* [FCN](https://arxiv.org/abs/1411.4038) - All 1( FCN8s), 2 (FCN16s) and 3 (FCN8s) stream variants
+* [U-Net](https://arxiv.org/abs/1505.04597) - With optional deconvolution and batchnorm
 
 ### DataLoaders implemented
 
@@ -17,7 +18,5 @@
 * [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
 
 ### TODO
-
-* Implement FCN16s, FCN8s
+* Add dataloader for MS COCO
 * Implement MaskRCNN
-* Add support for loading pretrained VGG16 weights for Segnet and FCNxs
