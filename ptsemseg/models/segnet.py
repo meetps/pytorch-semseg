@@ -37,3 +37,23 @@ class segnet(nn.Module):
         up1 = self.up1(up2, indices_1, unpool_shape1)
 
         return up1
+
+
+    def init_vgg16_params(self, vgg16, copy_fc8=True):
+        blocks = [self.down1,
+                  self.down2,
+                  self.down3,
+                  self.down4,
+                  self.down5]
+
+        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
+        features = list(vgg16.features.children())
+
+        for idx, conv_block in enumerate(blocks):
+            for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
+                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
+                    # print idx, l1, l2
+                    assert l1.weight.size() == l2.weight.size()
+                    assert l1.bias.size() == l2.bias.size()
+                    l2.weight.data = l1.weight.data
+                    l2.bias.data = l1.bias.data

@@ -15,7 +15,8 @@ class pascalVOCLoader(data.Dataset):
         self.split = split
         self.is_transform = is_transform
         self.img_size = img_size
-        self.mean_bgr = np.array([104.00698793, 116.66876762, 122.67891434])
+        self.mean = np.array([0.485, 0.456, 0.406])
+        self.std = np.array([0.229, 0.224, 0.225])
         self.files = collections.defaultdict(list)
 
         for split in ["train", "val", "trainval"]:
@@ -45,7 +46,9 @@ class pascalVOCLoader(data.Dataset):
     def transform(self, img, lbl):
         img = img[:, :, ::-1]
         img = img.astype(np.float64)
-        img -= self.mean_bgr
+        img /= 255.0
+        img -= self.mean
+        img /= self.std
         img = m.imresize(img, (self.img_size, self.img_size))
         img = img.transpose(2, 0, 1)
 
