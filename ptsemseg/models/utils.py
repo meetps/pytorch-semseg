@@ -54,7 +54,7 @@ class unetDown(nn.Module):
     def __init__(self, in_size, out_size, is_batchnorm):
         super(unetDown, self).__init__()
         self.conv = unetConv2(in_size, out_size, is_batchnorm)
-        self.down = nn.MaxPool2d(2, 1)
+        self.down = nn.MaxPool2d(2, 2)
 
     def forward(self, inputs):
         outputs = self.conv(inputs)
