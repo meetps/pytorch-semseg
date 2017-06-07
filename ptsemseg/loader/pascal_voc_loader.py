@@ -50,6 +50,9 @@ class pascalVOCLoader(data.Dataset):
         img -= self.mean
         img /= self.std
         img = m.imresize(img, (self.img_size, self.img_size))
+        # Resize scales images from 0 to 255, thus we need
+        # to divide by 255.0
+        img = img.astype(float) / 255.0
         img = img.transpose(2, 0, 1)
 
         lbl = self.encode_segmap(lbl)
