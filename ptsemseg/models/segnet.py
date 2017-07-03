@@ -6,14 +6,14 @@ class segnet(nn.Module):
 
     def __init__(self, n_classes=21, in_channels=3, is_unpooling=True):
         super(segnet, self).__init__()
-        
+
         self.in_channels = in_channels
         self.is_unpooling = is_unpooling
 
-        self.down1 = segnetDown2(self.in_channels,64)
+        self.down1 = segnetDown2(self.in_channels, 64)
         self.down2 = segnetDown2(64, 128)
         self.down3 = segnetDown3(128, 256)
-        self.down4 = segnetDown3(256,512)
+        self.down4 = segnetDown3(256, 512)
         self.down5 = segnetDown3(512, 512)
 
         self.up5 = segnetUp3(512, 512)
@@ -39,7 +39,7 @@ class segnet(nn.Module):
         return up1
 
 
-    def init_vgg16_params(self, vgg16, copy_fc8=True):
+    def init_vgg16_params(self, vgg16):
         blocks = [self.down1,
                   self.down2,
                   self.down3,
@@ -49,11 +49,30 @@ class segnet(nn.Module):
         ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
         features = list(vgg16.features.children())
 
+        vgg_layers = []
+        for _layer in features:
+            if isinstance(_layer, nn.Conv2d):
+                vgg_layers.append(_layer)
+
+        merged_layers = []
         for idx, conv_block in enumerate(blocks):
-            for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
-                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    # print idx, l1, l2
-                    assert l1.weight.size() == l2.weight.size()
-                    assert l1.bias.size() == l2.bias.size()
-                    l2.weight.data = l1.weight.data
-                    l2.bias.data = l1.bias.data
+            if idx < 2:
+                units = [conv_block.conv1.cbr_unit,
+                         conv_block.conv2.cbr_unit]
+            else:
+                units = [conv_block.conv1.cbr_unit,
+                         conv_block.conv2.cbr_unit,
+                         conv_block.conv3.cbr_unit]
+            for _unit in units:
+                for _layer in _unit:
+                    if isinstance(_layer, nn.Conv2d):
+                        merged_layers.append(_layer)
+
+        assert len(vgg_layers) == len(merged_layers)
+
+        for l1, l2 in zip(vgg_layers, merged_layers):
+            if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
+                assert l1.weight.size() == l2.weight.size()
+                assert l1.bias.size() == l2.bias.size()
+                l2.weight.data = l1.weight.data
+                l2.bias.data = l1.bias.data

@@ -86,23 +86,21 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperparams')
-    parser.add_argument('arch', nargs='?', type=str, default='fcn8s', 
+    parser.add_argument('--arch', nargs='?', type=str, default='fcn8s', 
                         help='Architecture to use [\'fcn8s, unet, segnet etc\']')
-    parser.add_argument('dataset', nargs='?', type=str, default='pascal', 
+    parser.add_argument('--dataset', nargs='?', type=str, default='pascal', 
                         help='Dataset to use [\'pascal, camvid, ade20k etc\']')
-    parser.add_argument('dataset', nargs='?', type=str, default='pascal', 
-                        help='Dataset to use [\'pascal, camvid, ade20k etc\']')
-    parser.add_argument('img_rows', nargs='?', type=int, default=256, 
+    parser.add_argument('--img_rows', nargs='?', type=int, default=256, 
                         help='Height of the input image')
-    parser.add_argument('img_cols', nargs='?', type=int, default=256, 
+    parser.add_argument('--img_cols', nargs='?', type=int, default=256, 
                         help='Height of the input image')
-    parser.add_argument('n_epoch', nargs='?', type=int, default=100, 
+    parser.add_argument('--n_epoch', nargs='?', type=int, default=100, 
                         help='# of the epochs')
-    parser.add_argument('batch_size', nargs='?', type=int, default=1, 
+    parser.add_argument('--batch_size', nargs='?', type=int, default=1, 
                         help='Batch Size')
-    parser.add_argument('l_rate', nargs='?', type=float, default=1e-5, 
+    parser.add_argument('--l_rate', nargs='?', type=float, default=1e-5, 
                         help='Learning Rate')
-    parser.add_argument('feature_scale', nargs='?', type=int, default=1, 
+    parser.add_argument('--feature_scale', nargs='?', type=int, default=1, 
                         help='Divider for # of features to use')    
     args = parser.parse_args()
     train(args)

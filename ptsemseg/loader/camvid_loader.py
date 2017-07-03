@@ -45,6 +45,7 @@ class camvidLoader(data.Dataset):
         img = img[:, :, ::-1]
         img = img.astype(np.float64)
         img -= self.mean
+        img = img.astype(float) / 255.0
         # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
