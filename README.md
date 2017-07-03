@@ -15,6 +15,7 @@ This repository aims at mirroring the semantic segmentation architectures as men
 
 #### Upcoming 
 
+* [PSPNet](https://arxiv.org/abs/1612.01105)
 * [E-Net](https://arxiv.org/abs/1606.02147)
 * [RefineNet](https://arxiv.org/abs/1611.06612)
 * [MaskRCNN](https://arxiv.org/abs/1703.06870)
