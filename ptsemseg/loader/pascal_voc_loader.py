@@ -87,7 +87,7 @@ class pascalVOCLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, 21):
+        for l in range(0, self.n_classes):
             r[temp == l] = label_colours[l, 0]
             g[temp == l] = label_colours[l, 1]
             b[temp == l] = label_colours[l, 2]

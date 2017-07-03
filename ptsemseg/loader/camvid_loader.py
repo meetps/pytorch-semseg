@@ -8,16 +8,14 @@ import matplotlib.pyplot as plt
 
 from torch.utils import data
 
-def default_loader(path):
-    return Image.open(path)
 
 class camvidLoader(data.Dataset):
-    def __init__(self, root, split="train", is_transform=False):
+    def __init__(self, root, split="train", is_transform=False, img_size=None):
         self.root = root
         self.split = split
         self.is_transform = is_transform
-        self.mean = np.array([0.485, 0.456, 0.406])
-        self.std = np.array([0.229, 0.224, 0.225])
+        self.mean = np.array([104.00699, 116.66877, 122.67892])
+        self.n_classes = 13
         self.files = collections.defaultdict(list)
 
         for split in ["train", "test", "val"]:
@@ -44,11 +42,10 @@ class camvidLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        # img = img[:, :, ::-1]
+        img = img[:, :, ::-1]
         img = img.astype(np.float64)
-        img /= 255.0
         img -= self.mean
-        img /= self.std
+        # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
         img = torch.from_numpy(img).float()
@@ -76,7 +73,7 @@ class camvidLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, 11):
+        for l in range(0, self.n_classes):
             r[temp == l] = label_colours[l, 0]
             g[temp == l] = label_colours[l, 1]
             b[temp == l] = label_colours[l, 2]
