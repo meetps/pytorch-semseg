@@ -324,7 +324,6 @@ class fcn8s(nn.Module):
         for idx, conv_block in enumerate(blocks):
             for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
                 if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    # print idx, l1, l2
                     assert l1.weight.size() == l2.weight.size()
                     assert l1.bias.size() == l2.bias.size()
                     l2.weight.data = l1.weight.data
@@ -332,7 +331,6 @@ class fcn8s(nn.Module):
         for i1, i2 in zip([0, 3], [0, 3]):
             l1 = vgg16.classifier[i1]
             l2 = self.classifier[i2]
-            # print type(l1), dir(l1),
             l2.weight.data = l1.weight.data.view(l2.weight.size())
             l2.bias.data = l1.bias.data.view(l2.bias.size())
         n_class = self.classifier[6].weight.size()[0]

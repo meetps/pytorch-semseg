@@ -10,13 +10,13 @@ from torch.utils import data
 
 
 class pascalVOCLoader(data.Dataset):
-    def __init__(self, root, split="train", is_transform=False, img_size=224):
+    def __init__(self, root, split="train", is_transform=False, img_size=256):
         self.root = root
         self.split = split
         self.is_transform = is_transform
-        self.img_size = img_size
-        self.mean = np.array([0.485, 0.456, 0.406])
-        self.std = np.array([0.229, 0.224, 0.225])
+        self.n_classes = 21
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
+        self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
 
         for split in ["train", "val", "trainval"]:
@@ -46,19 +46,18 @@ class pascalVOCLoader(data.Dataset):
     def transform(self, img, lbl):
         img = img[:, :, ::-1]
         img = img.astype(np.float64)
-        img /= 255.0
         img -= self.mean
-        img /= self.std
-        img = m.imresize(img, (self.img_size, self.img_size))
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
         # Resize scales images from 0 to 255, thus we need
         # to divide by 255.0
         img = img.astype(float) / 255.0
+        # NHWC -> NCWH
         img = img.transpose(2, 0, 1)
 
         lbl = self.encode_segmap(lbl)
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size, self.img_size), 'nearest', mode='F')
+        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), 'nearest', mode='F')
         lbl = lbl.astype(int)
         assert(np.all(classes == np.unique(lbl)))
 

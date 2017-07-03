@@ -1,6 +1,7 @@
 import sys
 import torch
 import visdom
+import argparse
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,7 +15,6 @@ from ptsemseg.models.fcn import fcn32s, fcn16s, fcn8s
 from ptsemseg.models.unet import unet
 from ptsemseg.loader.pascal_voc_loader import pascalVOCLoader
 from ptsemseg.loss import cross_entropy2d
-
 
 '''
 Global Parameters
@@ -103,5 +103,15 @@ def train(model):
     torch.save(model, "unet_voc_" + str(feature_scale) + ".pkl")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Hyperparams')
+    parser.add_argument('integers', metavar='N', type=int, nargs='+',
+                        help='an integer for the accumulator')
+    parser.add_argument('--sum', dest='accumulate', action='store_const',
+                        const=sum, default=max,
+                        help='sum the integers (default: find the max)')
+
+    args = parser.parse_args()
+    print(args.accumulate(args.integers))
+    
     model = sys.argv[1]
     train(model)

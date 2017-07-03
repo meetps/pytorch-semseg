@@ -8,6 +8,8 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.DS_STORE
+.idea/
 .vscode/
 env/
 build/

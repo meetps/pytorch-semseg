@@ -1,0 +1,11 @@
+{
+  "pascal":
+  {
+    "data_path": "/Users/meet/code/video-ladder/data/images/voc2012/"
+  },
+
+  "camvid":
+  {
+    "data_path": "Users/meet/data/camvid/"
+  }
+}
