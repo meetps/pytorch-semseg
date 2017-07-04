@@ -7,5 +7,9 @@
   "camvid":
   {
     "data_path": "/Users/meet/data/CamVid/"
+  },
+  "ade20k":
+  {
+    "data_path": "/Users/meet/data/ADE20K_2016_07_26/"
   }
 }
