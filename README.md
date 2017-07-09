@@ -4,7 +4,9 @@
 
 ## Semantic Segmentation Algorithms Implemented in PyTorch
 
-This repository aims at mirroring the semantic segmentation architectures as mentioned in respective papers. 
+This repository aims at mirroring popular semantic segmentation architectures in PyTorch. 
+
+<img src="https://meetshah1995.github.io/images/blog/ss/ptsemseg.png" width="80%">
 
 ### Networks implemented
 
@@ -24,10 +26,11 @@ This repository aims at mirroring the semantic segmentation architectures as men
 
 * [CamVid](http://mi.eng.cam.ac.uk/research/projects/VideoRec/CamVid/)
 * [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
+* [Cityscapes](https://www.cityscapes-dataset.com/)
+* [ADE20K](http://groups.csail.mit.edu/vision/datasets/ADE20K/)
 
 #### Upcoming
 
 * [NYUDv2](http://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html)
-* [Cityscapes](https://www.cityscapes-dataset.com/)
 * [Sun-RGBD](http://rgbd.cs.princeton.edu/)
 * [MS COCO](http://mscoco.org/)
