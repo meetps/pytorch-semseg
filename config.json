@@ -1,7 +1,12 @@
 {
   "pascal":
   {
-    "data_path": "/Users/meet/code/video-ladder/data/images/voc2012/"
+    "data_path": "/home/gpu_users/meetshah/segdata/pascal/VOCdevkit/VOC2012/"
+  },
+
+  "sbd":
+  {
+    "data_path": "/home/gpu_users/meetshah/segdata/pascal/benchmark_RELEASE/"
   },
 
   "camvid":

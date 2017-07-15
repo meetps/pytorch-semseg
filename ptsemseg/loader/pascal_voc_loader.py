@@ -1,16 +1,23 @@
 import os
 import collections
+import json
 import torch
 import torchvision
 import numpy as np
 import scipy.misc as m
+import scipy.io as io
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
 from torch.utils import data
 
+def get_data_path(name):
+    js = open('config.json').read()
+    data = json.loads(js)
+    return data[name]['data_path']
 
 class pascalVOCLoader(data.Dataset):
-    def __init__(self, root, split="train", is_transform=False, img_size=256):
+    def __init__(self, root, split="train_aug", is_transform=False, img_size=512):
         self.root = root
         self.split = split
         self.is_transform = is_transform
@@ -21,15 +28,21 @@ class pascalVOCLoader(data.Dataset):
 
         for split in ["train", "val", "trainval"]:
             file_list = tuple(open(root + '/ImageSets/Segmentation/' + split + '.txt', 'r'))
+            file_list = [id_.rstrip() for id_ in file_list]
             self.files[split] = file_list
+
+        if not os.path.isdir(self.root + '/SegmentationClass/pre_encoded'):
+            self.setup(pre_encode=True)
+        else:
+            self.setup(pre_encode=False)
 
     def __len__(self):
         return len(self.files[self.split])
 
     def __getitem__(self, index):
-        img_name = self.files[self.split][index].rstrip()
+        img_name = self.files[self.split][index]
         img_path = self.root + '/JPEGImages/' + img_name + '.jpg'
-        lbl_path = self.root + '/SegmentationClass/' + img_name + '.png'
+        lbl_path = self.root + '/SegmentationClass/pre_encoded/' + img_name + '.png'
 
         img = m.imread(img_path)
         img = np.array(img, dtype=np.uint8)
@@ -54,12 +67,10 @@ class pascalVOCLoader(data.Dataset):
         # NHWC -> NCWH
         img = img.transpose(2, 0, 1)
 
-        lbl = self.encode_segmap(lbl)
-        classes = np.unique(lbl)
+        lbl[lbl==255] = 0
         lbl = lbl.astype(float)
         lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), 'nearest', mode='F')
         lbl = lbl.astype(int)
-        assert(np.all(classes == np.unique(lbl)))
 
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
@@ -101,6 +112,33 @@ class pascalVOCLoader(data.Dataset):
             plt.show()
         else:
             return rgb
+
+    def setup(self, pre_encode=False):
+        sbd_path = get_data_path('sbd')
+        voc_path = get_data_path('pascal')
+
+        target_path = self.root + '/SegmentationClass/pre_encoded/'
+        if not os.path.exists(target_path):
+            os.makedirs(target_path)
+
+        sbd_train_list = tuple(open(sbd_path + 'dataset/train.txt', 'r'))
+        sbd_train_list = [id_.rstrip() for id_ in sbd_train_list]
+        
+        self.files['train_aug'] = self.files['train'] + sbd_train_list
+
+        if pre_encode:
+            print "Pre-encoding segmentation masks..."
+            for i in tqdm(sbd_train_list):
+                lbl_path = sbd_path + 'dataset/cls/' + i + '.mat'
+                lbl = io.loadmat(lbl_path)['GTcls'][0]['Segmentation'][0].astype(np.int32)
+                lbl = m.toimage(lbl, high=lbl.max(), low=lbl.min())
+                m.imsave(target_path + i + '.png', lbl)
+
+            for i in tqdm(self.files['trainval']):
+                lbl_path = self.root + '/SegmentationClass/' + i + '.png'
+                lbl = self.encode_segmap(m.imread(lbl_path))
+                lbl = m.toimage(lbl, high=lbl.max(), low=lbl.min())
+                m.imsave(target_path + i + '.png', lbl)
 
 if __name__ == '__main__':
     local_path = '/home/gpu_users/meetshah/segdata/pascal/VOCdevkit/VOC2012'
