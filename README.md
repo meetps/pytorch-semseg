@@ -94,11 +94,9 @@ python validate.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
   --split        Split of dataset to validate on
 ```
 
-**To test the model on custom images(s):**
+**To test the model w.r.t. a dataset on custom images(s):**
 
 ```
-python test.py [-h] [--model_path [MODEL_PATH]] [--img_path [IMG_PATH]]
-
-  --model_path   Path to the saved model
-  --img_path     Path to the input image
+python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
+               [--img_path [IMG_PATH]] [--out_path [OUT_PATH]]
 ```
