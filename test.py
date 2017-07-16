@@ -4,6 +4,7 @@ import visdom
 import argparse
 import numpy as np
 import torch.nn as nn
+import scipy.misc as misc
 import torch.nn.functional as F
 import torchvision.models as models
 
@@ -14,59 +15,53 @@ from tqdm import tqdm
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.metrics import scores
 
-def train(args):
+def test(args):
 
-    # Setup Dataloader
+    # Setup image
+    print "Read Input Image from : {}".format(args.img_path) 
+    img = misc.imread(args.img_path)
+
     data_loader = get_loader(args.dataset)
     data_path = get_data_path(args.dataset)
-    loader = data_loader(data_path, split=args.split, is_transform=True, img_size=(args.img_rows, args.img_cols))
+    loader = data_loader(data_path, is_transform=True)
     n_classes = loader.n_classes
-    valloader = data.DataLoader(loader, batch_size=args.batch_size, num_workers=4)
+
+    img = img[:, :, ::-1]
+    img = img.astype(np.float64)
+    img -= loader.mean
+    img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
+    img = img.astype(float) / 255.0
+    # NHWC -> NCWH
+    img = img.transpose(2, 0, 1) 
+    img = np.expand_dims(img, 0)
+    img = torch.from_numpy(img).float()
 
     # Setup Model
     model = torch.load(args.model_path)
+    model.eval()
 
     if torch.cuda.is_available():
         model.cuda(0)
+        images = Variable(img.cuda(0))
+    else:
+        images = Variable(img)
 
-    gts, preds = [], []
-    for i, (images, labels) in tqdm(enumerate(valloader)):
-        if torch.cuda.is_available():
-            images = Variable(images.cuda(0))
-            labels = Variable(labels.cuda(0))
-        else:
-            images = Variable(images)
-            labels = Variable(labels)
-
-        outputs = model(images)
-        pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=1)
-        gt = labels.data.cpu().numpy()
-        
-        for gt_, pred_ in zip(gt, pred):
-            gts.append(gt_)
-            preds.append(pred_)
-
-    score, class_iou = scores(gts, preds, n_class=n_classes)
-
-    for k, v in score.items():
-        print k, v
-
-    for i in range(n_classes):
-        print i, class_iou[i] 
+    outputs = model(images)
+    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=1)
+    decoded = loader.decode_segmap(pred[0])
+    print np.unique(pred)
+    misc.imsave(args.out_path, decoded)
+    print "Segmentation Mask Saved at: {}".format(args.out_path) 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Hyperparams')
+    parser = argparse.ArgumentParser(description='Params')
     parser.add_argument('--model_path', nargs='?', type=str, default='fcn8s_pascal_1_26.pkl', 
                         help='Path to the saved model')
     parser.add_argument('--dataset', nargs='?', type=str, default='pascal', 
                         help='Dataset to use [\'pascal, camvid, ade20k etc\']')
-    parser.add_argument('--img_rows', nargs='?', type=int, default=256, 
-                        help='Height of the input image')
-    parser.add_argument('--img_cols', nargs='?', type=int, default=256, 
-                        help='Height of the input image')
-    parser.add_argument('--batch_size', nargs='?', type=int, default=1, 
-                        help='Batch Size')
-    parser.add_argument('--split', nargs='?', type=str, default='val', 
-                        help='Split of dataset to test on')
+    parser.add_argument('--img_path', nargs='?', type=str, default=None, 
+                        help='Path of the input image')
+    parser.add_argument('--out_path', nargs='?', type=str, default=None, 
+                        help='Path of the output segmap')
     args = parser.parse_args()
-    train(args)
+    test(args)

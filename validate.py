@@ -14,7 +14,7 @@ from tqdm import tqdm
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.metrics import scores
 
-def train(args):
+def validate(args):
 
     # Setup Dataloader
     data_loader = get_loader(args.dataset)
@@ -25,6 +25,7 @@ def train(args):
 
     # Setup Model
     model = torch.load(args.model_path)
+    model.eval()
 
     if torch.cuda.is_available():
         model.cuda(0)
@@ -69,4 +70,4 @@ if __name__ == '__main__':
     parser.add_argument('--split', nargs='?', type=str, default='val', 
                         help='Split of dataset to test on')
     args = parser.parse_args()
-    train(args)
+    validate(args)

@@ -22,7 +22,7 @@ def train(args):
     data_path = get_data_path(args.dataset)
     loader = data_loader(data_path, is_transform=True, img_size=(args.img_rows, args.img_cols))
     n_classes = loader.n_classes
-    trainloader = data.DataLoader(loader, batch_size=args.batch_size, num_workers=4)
+    trainloader = data.DataLoader(loader, batch_size=args.batch_size, num_workers=4, shuffle=True)
 
     # Setup visdom for visualization
     vis = visdom.Visdom()
@@ -73,16 +73,15 @@ def train(args):
             if (i+1) % 20 == 0:
                 print("Epoch [%d/%d] Loss: %.4f" % (epoch+1, args.n_epoch, loss.data[0]))
 
-        test_output = model(test_image)
-        predicted = loader.decode_segmap(test_output[0].data.numpy().argmax(0))
-        target = loader.decode_segmap(test_segmap.numpy())
+        # test_output = model(test_image)
+        # predicted = loader.decode_segmap(test_output[0].cpu().data.numpy().argmax(0))
+        # target = loader.decode_segmap(test_segmap.numpy())
 
-        vis.image(test_image[0].cpu().data.numpy(), opts=dict(title='Input' + str(epoch)))
-        vis.image(np.transpose(target, [2,0,1]), opts=dict(title='GT' + str(epoch)))
-        vis.image(np.transpose(predicted, [2,0,1]), opts=dict(title='Predicted' + str(epoch)))
+        # vis.image(test_image[0].cpu().data.numpy(), opts=dict(title='Input' + str(epoch)))
+        # vis.image(np.transpose(target, [2,0,1]), opts=dict(title='GT' + str(epoch)))
+        # vis.image(np.transpose(predicted, [2,0,1]), opts=dict(title='Predicted' + str(epoch)))
 
-
-    torch.save(model, "{}_{}_{}.pkl".format(args.model, args.dataset, args.feature_scale))
+        torch.save(model, "{}_{}_{}_{}.pkl".format(args.arch, args.dataset, args.feature_scale, epoch))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperparams')

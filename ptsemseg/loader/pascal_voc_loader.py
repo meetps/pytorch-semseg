@@ -104,9 +104,9 @@ class pascalVOCLoader(data.Dataset):
             b[temp == l] = label_colours[l, 2]
 
         rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
-        rgb[:, :, 0] = (r/255.0)
-        rgb[:, :, 1] = (g/255.0)
-        rgb[:, :, 2] = (b/255.0)
+        rgb[:, :, 0] = r
+        rgb[:, :, 1] = g
+        rgb[:, :, 2] = b
         if plot:
             plt.imshow(rgb)
             plt.show()
