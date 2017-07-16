@@ -1,4 +1,4 @@
-# Originally written wkentaro
+# Originally written by wkentaro
 # https://github.com/wkentaro/pytorch-fcn/blob/master/torchfcn/utils.py
 
 import numpy as np
@@ -28,4 +28,9 @@ def scores(label_trues, label_preds, n_class):
     mean_iu = np.nanmean(iu)
     freq = hist.sum(axis=1) / hist.sum()
     fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
-    return acc, acc_cls, mean_iu, fwavacc
+    cls_iu = dict(zip(range(n_class), iu))
+
+    return {'Overall Acc: \t': acc,
+            'Mean Acc : \t': acc_cls,
+            'FreqW Acc : \t': fwavacc,
+            'Mean IoU : \t': mean_iu,}, cls_iu
