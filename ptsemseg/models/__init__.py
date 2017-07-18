@@ -22,7 +22,7 @@ def get_model(name, n_classes):
         vgg16 = models.vgg16(pretrained=True)
         model.init_vgg16_params(vgg16)
 
-    elif model == 'unet':
+    elif name == 'unet':
         model = model(n_classes=n_classes,
                       is_batchnorm=True,
                       in_channels=3,
