@@ -222,7 +222,6 @@ class residualBottleneck(nn.Module):
 
         return out
 
-
 class linknetUp(nn.Module):
     def __init__(self, in_channels, n_filters):
         super(linknetUp, self).__init__()
