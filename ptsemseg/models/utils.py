@@ -195,6 +195,34 @@ class residualBlock(nn.Module):
         out = self.relu(out)
         return out
 
+
+class residualBottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self, in_channels, n_filters, stride=1, downsample=None):
+        super(residualBottleneck, self).__init__()
+        self.convbn1 = nn.Conv2DBatchNorm(in_channels,  n_filters, k_size=1, bias=False)
+        self.convbn2 = nn.Conv2DBatchNorm(n_filters,  n_filters, k_size=3, padding=1, stride=stride, bias=False)
+        self.convbn3 = nn.Conv2DBatchNorm(n_filters,  n_filters * 4, k_size=1, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.convbn1(x)
+        out = self.convbn2(out)
+        out = self.convbn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
 class linknetUp(nn.Module):
     def __init__(self, in_channels, n_filters):
         super(linknetUp, self).__init__()
