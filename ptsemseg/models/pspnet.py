@@ -33,9 +33,9 @@ class pspnet(nn.Module):
 
         # Decoder
         self.decoder4 = linknetUp(filters[3], filters[2])
-        self.decoder3 = linknetUp(filters[2], filters[1])
-        self.decoder2 = linknetUp(filters[1], filters[0])
-        self.decoder1 = linknetUp(filters[0], filters[0])
+        self.decoder4 = linknetUp(filters[2], filters[1])
+        self.decoder4 = linknetUp(filters[1], filters[0])
+        self.decoder4 = linknetUp(filters[0], filters[0])
 
         # Final Classifier
         self.finaldeconvbnrelu1 = nn.Sequential(nn.ConvTranspose2d(filters[0], 32/feature_scale, 3, 2, 1),
