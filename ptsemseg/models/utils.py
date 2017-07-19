@@ -8,8 +8,8 @@ class conv2DBatchNorm(nn.Module):
         super(conv2DBatchNorm, self).__init__()
 
         self.cb_unit = nn.Sequential(nn.Conv2d(int(in_channels), int(n_filters), kernel_size=k_size,
-                                               padding=padding, stride=stride, bias=bias),
-                                     nn.BatchNorm2d(int(n_filters)),)
+                                               padding=padding, stride=stride, bias=bias), nn.BatchNorm2d(int(n_filters)),)
+
 
     def forward(self, inputs):
         outputs = self.cb_unit(inputs)
@@ -222,11 +222,13 @@ class residualBottleneck(nn.Module):
 
         return out
 
+
 class linknetUp(nn.Module):
     def __init__(self, in_channels, n_filters):
         super(linknetUp, self).__init__()
 
         # B, 2C, H, W -> B, C/2, H, W
+
         self.convbnrelu1 = conv2DBatchNormRelu(in_channels, n_filters/2, k_size=1, stride=1, padding=0)
 
         # B, C/2, H, W -> B, C/2, 2H, 2W
