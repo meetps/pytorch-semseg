@@ -13,7 +13,7 @@ class pspnet(nn.Module):
         self.layers = [2, 2, 2, 2] # Currently hardcoded for ResNet-18
 
         filters = [64, 128, 256, 512]
-        filters = [x / self.feature_scale for x in filters]
+        # filters = [x / self.feature_scale for x in filters]
 
         self.inplanes = filters[0]
 
@@ -33,30 +33,25 @@ class pspnet(nn.Module):
 
         # Decoder
         self.decoder4 = linknetUp(filters[3], filters[2])
-        self.decoder4 = linknetUp(filters[2], filters[1])
-        self.decoder4 = linknetUp(filters[1], filters[0])
-        self.decoder4 = linknetUp(filters[0], filters[0])
+        self.decoder3 = linknetUp(filters[2], filters[1])
+        self.decoder2 = linknetUp(filters[1], filters[0])
+        self.decoder1 = linknetUp(filters[0], filters[0])
 
         # Final Classifier
-        self.finaldeconvbnrelu1 = nn.Sequential(nn.ConvTranspose2d(filters[0], 32/feature_scale, 3, 2, 1),
-                                      nn.BatchNorm2d(32/feature_scale),
-                                      nn.ReLU(inplace=True),)
+        self.finaldeconvbnrelu1 = deconv2DBatchNormRelu(filters[0], 32/feature_scale, 2, 2, 0)
         self.finalconvbnrelu2 = conv2DBatchNormRelu(in_channels=32/feature_scale, k_size=3, n_filters=32/feature_scale, padding=1, stride=1)
-        self.finalconv3 = nn.Conv2d(32/feature_scale, n_classes, 2, 2, 0)
+        self.finalconv3 = nn.Conv2d(int(32/feature_scale), int(n_classes), 3, 1, 1)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(nn.Conv2d(self.inplanes, planes * block.expansion,
-                                                 kernel_size=1, stride=stride, bias=False),
-                                       nn.BatchNorm2d(planes * block.expansion),)
+            downsample = conv2DBatchNorm(self.inplanes, planes*block.expansion, k_size=1, stride=stride, padding=0, bias=False)
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)
-
 
     def forward(self, x):
         # Encoder
@@ -70,11 +65,11 @@ class pspnet(nn.Module):
 
         # Decoder with Skip Connections
         d4 = self.decoder4(e4)
-        d4 += e3
+        d4 = d4 + e3
         d3 = self.decoder3(d4)
-        d3 += e2
+        d3 = d3 + e2
         d2 = self.decoder2(d3)
-        d2 += e1
+        d2 = d2 + e1
         d1 = self.decoder1(d2)
 
         # Final Classification
