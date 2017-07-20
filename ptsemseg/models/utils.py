@@ -229,13 +229,13 @@ class linknetUp(nn.Module):
         super(linknetUp, self).__init__()
 
         # B, 2C, H, W -> B, C/2, H, W
-        self.convbnrelu1 = conv2DBatchNormRelu(in_channels, n_filters/2, k_size=1, stride=1, padding=1)
+        self.convbnrelu1 = conv2DBatchNormRelu(in_channels, n_filters/2, k_size=1, stride=1, padding=0)
 
-        # B, C/2, H, W -> B, C/2, H, W
-        self.deconvbnrelu2 = nn.deconv2DBatchNormRelu(n_filters/2, n_filters/2, k_size=3,  stride=2, padding=0,)
+        # B, C/2, H, W -> B, C/2, 2H, 2W
+        self.deconvbnrelu2 = deconv2DBatchNormRelu(n_filters/2, n_filters/2, k_size=2,  stride=2, padding=0)
 
-        # B, C/2, H, W -> B, C, H, W
-        self.convbnrelu3 = conv2DBatchNormRelu(n_filters/2, n_filters, k_size=1, stride=1, padding=1)
+        # B, C/2, 2H, 2W -> B, C, 2H, 2W
+        self.convbnrelu3 = conv2DBatchNormRelu(n_filters/2, n_filters, k_size=1, stride=1, padding=0)
 
     def forward(self, x):
         x = self.convbnrelu1(x)
