@@ -28,6 +28,7 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
 * [Cityscapes](https://www.cityscapes-dataset.com/)
 * [ADE20K](http://groups.csail.mit.edu/vision/datasets/ADE20K/)
+* [MIT Scene Parsing Benchmark](http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeData2016.zip)
 
 #### Upcoming
 
@@ -100,3 +101,8 @@ python validate.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
 python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
                [--img_path [IMG_PATH]] [--out_path [OUT_PATH]]
 ```
+
+### Contributors 
+
+- [josephreisinger](https://github.com/josephreisinger)
+- [ibadami](https://github.com/ibadami)
