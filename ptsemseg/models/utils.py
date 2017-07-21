@@ -201,9 +201,9 @@ class residualBottleneck(nn.Module):
 
     def __init__(self, in_channels, n_filters, stride=1, downsample=None):
         super(residualBottleneck, self).__init__()
-        self.convbn1 = nn.Conv2DBatchNorm(in_channels,  n_filters, k_size=1, bias=False)
-        self.convbn2 = nn.Conv2DBatchNorm(n_filters,  n_filters, k_size=3, padding=1, stride=stride, bias=False)
-        self.convbn3 = nn.Conv2DBatchNorm(n_filters,  n_filters * 4, k_size=1, bias=False)
+        self.convbn1 = conv2DBatchNorm(in_channels,  n_filters, k_size=1, stride=1, padding=0, bias=False)
+        self.convbn2 = conv2DBatchNorm(n_filters,  n_filters, k_size=3,  stride=stride, padding=1, bias=False)
+        self.convbn3 = conv2DBatchNorm(n_filters,  n_filters * self.expansion, k_size=1, stride=1, padding=0, bias=False)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
