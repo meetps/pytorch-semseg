@@ -14,6 +14,7 @@ from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.loss import cross_entropy2d
 from ptsemseg.metrics import scores
+from lr_scheduling import *
 
 def train(args):
 
@@ -56,6 +57,9 @@ def train(args):
                 images = Variable(images)
                 labels = Variable(labels)
 
+            iter = len(trainloader)*epoch + i
+            poly_lr_scheduler(optimizer, args.l_rate, iter)
+            
             optimizer.zero_grad()
             outputs = model(images)
 
