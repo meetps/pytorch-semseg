@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torchvision.models as models
 
 from utils import *
 
@@ -9,19 +10,29 @@ Resnets = {'resnet18' :{'layers':[2, 2, 2, 2],'filters':[64, 128, 256, 512], 'bl
            'resnet152':{'layers':[3, 8, 36, 3],'filters':[64, 128, 256, 512], 'block':residualBottleneck,'expansion':4}
             }
 
+pretrained_models = {'resnet18':  models.resnet18(pretrained=True),
+          'resnet34': models.resnet34(pretrained=True),
+          'resnet50': models.resnet50(pretrained=True),
+          'resnet101': models.resnet101(pretrained=True),
+          'resnet152': models.resnet152(pretrained=True)
+         }
+
 
 class linknet(nn.Module):
 
-    def __init__(self, resnet='resnet18', feature_scale=4, n_classes=21, is_deconv=True, in_channels=3, is_batchnorm=True):
-        super(pspnet, self).__init__()
+    def __init__(self, resnet='resnet18', feature_scale=4, n_classes=21, pretrained=True, is_deconv=True, in_channels=3, is_batchnorm=True):
+        super(linknet, self).__init__()
         self.is_deconv = is_deconv
         self.in_channels = in_channels
         self.is_batchnorm = is_batchnorm
         self.feature_scale = feature_scale
+        self.pretrained = pretrained
 
         assert resnet in Resnets.keys(), 'Not a valid resnet, currently supported resnets are 18, 34, 50, 101 and 152'
         layers = Resnets[resnet]['layers']
         filters = Resnets[resnet]['filters']
+        weights = pretrained_models[resnet]
+
         # filters = [x / self.feature_scale for x in filters]
         expansion =Resnets[resnet]['expansion']
 
@@ -34,10 +45,16 @@ class linknet(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         block = Resnets[resnet]['block']
-        self.encoder1 = self._make_layer(block, filters[0], layers[0])
-        self.encoder2 = self._make_layer(block, filters[1], layers[1], stride=2)
-        self.encoder3 = self._make_layer(block, filters[2], layers[2], stride=2)
-        self.encoder4 = self._make_layer(block, filters[3], layers[3], stride=2)
+        if self.pretrained:
+            self.encoder1 = weights.layer1
+            self.encoder2 = weights.layer2
+            self.encoder3 = weights.layer3
+            self.encoder4 = weights.layer4
+        else:
+            self.encoder1 = self._make_layer(block, filters[0], layers[0])
+            self.encoder2 = self._make_layer(block, filters[1], layers[1], stride=2)
+            self.encoder3 = self._make_layer(block, filters[2], layers[2], stride=2)
+            self.encoder4 = self._make_layer(block, filters[3], layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7)
 
 
