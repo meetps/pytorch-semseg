@@ -10,7 +10,7 @@ Resnets = {'resnet18' :{'layers':[2, 2, 2, 2],'filters':[64, 128, 256, 512], 'bl
             }
 
 
-class pspnet(nn.Module):
+class linknet(nn.Module):
 
     def __init__(self, resnet='resnet18', feature_scale=4, n_classes=21, is_deconv=True, in_channels=3, is_batchnorm=True):
         super(pspnet, self).__init__()
