@@ -26,12 +26,12 @@ This repository aims at mirroring popular semantic segmentation architectures in
 
 * [CamVid](http://mi.eng.cam.ac.uk/research/projects/VideoRec/CamVid/)
 * [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
-* [Cityscapes](https://www.cityscapes-dataset.com/)
 * [ADE20K](http://groups.csail.mit.edu/vision/datasets/ADE20K/)
 * [MIT Scene Parsing Benchmark](http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeData2016.zip)
 
 #### Upcoming
 
+* [Cityscapes](https://www.cityscapes-dataset.com/)
 * [NYUDv2](http://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html)
 * [Sun-RGBD](http://rgbd.cs.princeton.edu/)
 * [MS COCO](http://mscoco.org/)
