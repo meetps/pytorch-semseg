@@ -28,17 +28,17 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/segexamples/index.html)
 * [ADE20K](http://groups.csail.mit.edu/vision/datasets/ADE20K/)
 * [MIT Scene Parsing Benchmark](http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeData2016.zip)
+* [Cityscapes](https://www.cityscapes-dataset.com/)
 
 #### Upcoming
 
-* [Cityscapes](https://www.cityscapes-dataset.com/)
 * [NYUDv2](http://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html)
 * [Sun-RGBD](http://rgbd.cs.princeton.edu/)
 * [MS COCO](http://mscoco.org/)
 
 ### Requirements
 
-* pytorch >=0.1.12
+* pytorch >=0.2.0
 * torchvision ==0.1.7
 * visdom >=1.0.1 (for loss and results visualization)
 * scipy
@@ -73,7 +73,7 @@ python train.py [-h] [--arch [ARCH]] [--dataset [DATASET]]
   --arch           Architecture to use ['fcn8s, unet, segnet etc']
   --dataset        Dataset to use ['pascal, camvid, ade20k etc']
   --img_rows       Height of the input image
-  --img_cols       Height of the input image
+  --img_cols       Width of the input image
   --n_epoch        # of the epochs
   --batch_size     Batch Size
   --l_rate         Learning Rate
@@ -90,7 +90,7 @@ python validate.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
   --model_path   Path to the saved model
   --dataset      Dataset to use ['pascal, camvid, ade20k etc']
   --img_rows     Height of the input image
-  --img_cols     Height of the input image
+  --img_cols     Width of the input image
   --batch_size   Batch Size
   --split        Split of dataset to validate on
 ```
@@ -104,5 +104,5 @@ python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
 
 ### Contributors 
 
-- [josephreisinger](https://github.com/josephreisinger)
+- [josephreisinger](https://github.com/josephreisinger) 
 - [ibadami](https://github.com/ibadami)

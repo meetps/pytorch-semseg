@@ -1,0 +1,173 @@
+import os
+import torch
+import numpy as np
+import scipy.misc as m
+
+from torch.utils import data
+
+from ptsemseg.utils import recursive_glob
+
+
+class cityscapesLoader(data.Dataset):
+    """cityscapesLoader
+
+    https://www.cityscapes-dataset.com
+
+    Data is derived from CityScapes, and can be downloaded from here:
+    https://www.cityscapes-dataset.com/downloads/
+
+    Many Thanks to @fvisin for the loader repo:
+    https://github.com/fvisin/dataset_loaders/blob/master/dataset_loaders/images/cityscapes.py
+    """
+    colors = [[  0,   0,   0],
+              [128,  64, 128],
+              [244,  35, 232],
+              [ 70,  70,  70],
+              [102, 102, 156],
+              [190, 153, 153],
+              [153, 153, 153],
+              [250, 170,  30],
+              [220, 220,   0],
+              [107, 142,  35],
+              [152, 251, 152],
+              [ 0, 130, 180],
+              [220,  20,  60],
+              [255,   0,   0],
+              [  0,   0, 142],
+              [  0,   0,  70],
+              [  0,  60, 100],
+              [  0,  80, 100],
+              [  0,   0, 230],
+              [119,  11,  32]]
+    label_colours = dict(zip(range(20), colors))
+
+    def __init__(self, root, split="train", is_transform=False, img_size=(1024, 2048)):
+        """__init__
+
+        :param root:
+        :param split:
+        :param is_transform:
+        :param img_size:
+        """
+        self.root = root
+        self.split = split
+        self.is_transform = is_transform
+        self.n_classes = 20
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
+        self.mean = np.array([104.00699, 116.66877, 122.67892])
+        self.files = {}
+
+        self.images_base = os.path.join(self.root, 'leftImg8bit', self.split)
+        self.annotations_base = os.path.join(self.root, 'gtFine_trainvaltest', 'gtFine', self.split)
+
+        self.files[split] = recursive_glob(rootdir=self.images_base, suffix='.png')
+
+        self.void_classes = [0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15, 16, 18, 29, 30, -1]
+        self.valid_classes = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
+        self.class_map = dict(zip(self.valid_classes, range(1,20))) 
+
+        if not self.files[split]:
+            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
+
+        print("Found %d %s images" % (len(self.files[split]), split))
+
+    def __len__(self):
+        """__len__"""
+        return len(self.files[self.split])
+
+    def __getitem__(self, index):
+        """__getitem__
+
+        :param index:
+        """
+        img_path = self.files[self.split][index].rstrip()
+        lbl_path = os.path.join(self.annotations_base,
+                                img_path.split(os.sep)[-2], 
+                                os.path.basename(img_path)[:-15] + 'gtFine_labelIds.png')
+
+        img = m.imread(img_path)
+        img = np.array(img, dtype=np.uint8)
+
+        lbl = m.imread(lbl_path)
+        lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
+        
+        if self.is_transform:
+            img, lbl = self.transform(img, lbl)
+
+        return img, lbl
+
+    def transform(self, img, lbl):
+        """transform
+
+        :param img:
+        :param lbl:
+        """
+        img = img[:, :, ::-1]
+        img = img.astype(np.float64)
+        img -= self.mean
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
+        # Resize scales images from 0 to 255, thus we need
+        # to divide by 255.0
+        img = img.astype(float) / 255.0
+        # NHWC -> NCWH
+        img = img.transpose(2, 0, 1)
+
+        classes = np.unique(lbl)
+        lbl = lbl.astype(float)
+        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), 'nearest', mode='F')
+        lbl = lbl.astype(int)
+
+        if not np.all(classes == np.unique(lbl)):
+            print("WARN: resizing labels yielded fewer classes")
+
+        if not np.all(np.unique(lbl) < self.n_classes):
+            raise ValueError("Segmentation map contained invalid class values")
+
+        img = torch.from_numpy(img).float()
+        lbl = torch.from_numpy(lbl).long()
+
+        return img, lbl
+
+    def decode_segmap(self, temp):
+        r = temp.copy()
+        g = temp.copy()
+        b = temp.copy()
+        for l in range(0, self.n_classes):
+            r[temp == l] = self.label_colours[l][0]
+            g[temp == l] = self.label_colours[l][1]
+            b[temp == l] = self.label_colours[l][2]
+
+        rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
+        rgb[:, :, 0] = r
+        rgb[:, :, 1] = g
+        rgb[:, :, 2] = b
+        return rgb
+
+    def encode_segmap(self, mask):
+        #Put all void classes to zero
+        for _voidc in self.void_classes:
+            mask[mask==_voidc] = 0
+        for _validc in self.valid_classes:
+            import pdb
+            pdb.set_trace()
+
+            mask[mask==_validc] = self.class_map[_validc]
+        return mask
+
+if __name__ == '__main__':
+    import torchvision
+    import matplotlib.pyplot as plt
+
+    local_path = '/home/meet/datasets/cityscapes/'
+    dst = cityscapesLoader(local_path, is_transform=True)
+    trainloader = data.DataLoader(dst, batch_size=4, num_workers=0)
+    for i, data in enumerate(trainloader):
+        imgs, labels = data
+        if i == 2:
+            img = torchvision.utils.make_grid(imgs).numpy()
+            img = np.transpose(img, (1, 2, 0))
+            img = img[:, :, ::-1]
+            plt.imshow(img)
+            plt.show()
+            plt.imshow(dst.decode_segmap(labels.numpy()[i+1]))
+            plt.show()
