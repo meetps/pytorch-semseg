@@ -14,7 +14,6 @@ from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.loss import cross_entropy2d
 from ptsemseg.metrics import scores
-from lr_scheduling import *
 
 def train(args):
 
@@ -37,9 +36,9 @@ def train(args):
 
     # Setup Model
     model = get_model(args.arch, n_classes)
-
+    
     if torch.cuda.is_available():
-        model.cuda(0)
+        model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
         test_image, test_segmap = loader[0]
         test_image = Variable(test_image.unsqueeze(0).cuda(0))
     else:
@@ -57,9 +56,6 @@ def train(args):
                 images = Variable(images)
                 labels = Variable(labels)
 
-            iter = len(trainloader)*epoch + i
-            poly_lr_scheduler(optimizer, args.l_rate, iter)
-            
             optimizer.zero_grad()
             outputs = model(images)
 

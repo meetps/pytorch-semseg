@@ -27,12 +27,10 @@ def validate(args):
     model = torch.load(args.model_path)
     model.eval()
 
-    if torch.cuda.is_available():
-        model.cuda(0)
-
     gts, preds = [], []
     for i, (images, labels) in tqdm(enumerate(valloader)):
         if torch.cuda.is_available():
+            model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
             images = Variable(images.cuda(0))
             labels = Variable(labels.cuda(0))
         else:
