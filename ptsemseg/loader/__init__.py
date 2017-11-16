@@ -4,7 +4,7 @@ from ptsemseg.loader.pascal_voc_loader import pascalVOCLoader
 from ptsemseg.loader.camvid_loader import camvidLoader
 from ptsemseg.loader.ade20k_loader import ADE20KLoader
 from ptsemseg.loader.mit_sceneparsing_benchmark_loader import MITSceneParsingBenchmarkLoader
-
+from ptsemseg.loader.cityscapes_loader import cityscapesLoader
 
 def get_loader(name):
     """get_loader
@@ -16,6 +16,7 @@ def get_loader(name):
         'camvid': camvidLoader,
         'ade20k': ADE20KLoader,
         'mit_sceneparsing_benchmark': MITSceneParsingBenchmarkLoader,
+        'cityscapes': cityscapesLoader,
     }[name]
 
 

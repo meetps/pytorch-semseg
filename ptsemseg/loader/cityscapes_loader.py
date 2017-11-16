@@ -148,9 +148,6 @@ class cityscapesLoader(data.Dataset):
         for _voidc in self.void_classes:
             mask[mask==_voidc] = 0
         for _validc in self.valid_classes:
-            import pdb
-            pdb.set_trace()
-
             mask[mask==_validc] = self.class_map[_validc]
         return mask
 
