@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from utils import *
+from ptsemseg.models.utils import *
 
 class linknet(nn.Module):
 

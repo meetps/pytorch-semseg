@@ -48,10 +48,10 @@ def validate(args):
     score, class_iou = scores(gts, preds, n_class=n_classes)
 
     for k, v in score.items():
-        print k, v
+        print(k, v)
 
     for i in range(n_classes):
-        print i, class_iou[i] 
+        print(i, class_iou[i])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyperparams')
