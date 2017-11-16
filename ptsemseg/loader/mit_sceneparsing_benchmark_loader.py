@@ -5,7 +5,7 @@ import scipy.misc as m
 
 from torch.utils import data
 
-from ptsemseg.uitls import recursive_glob
+from ptsemseg.utils import recursive_glob
 
 
 class MITSceneParsingBenchmarkLoader(data.Dataset):

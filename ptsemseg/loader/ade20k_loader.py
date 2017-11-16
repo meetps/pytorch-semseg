@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from torch.utils import data
 
-from ptsemseg.uitls import recursive_glob
+from ptsemseg.utils import recursive_glob
 
 class ADE20KLoader(data.Dataset):
     def __init__(self, root, split="training", is_transform=False, img_size=512):
