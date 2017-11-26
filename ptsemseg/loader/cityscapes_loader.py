@@ -39,6 +39,7 @@ class cityscapesLoader(data.Dataset):
               [  0,  80, 100],
               [  0,   0, 230],
               [119,  11,  32]]
+
     label_colours = dict(zip(range(20), colors))
 
     def __init__(self, root, split="train", is_transform=False, img_size=(1024, 2048)):
@@ -61,9 +62,14 @@ class cityscapesLoader(data.Dataset):
         self.annotations_base = os.path.join(self.root, 'gtFine_trainvaltest', 'gtFine', self.split)
 
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix='.png')
-
+    
         self.void_classes = [0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15, 16, 18, 29, 30, -1]
         self.valid_classes = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
+        self.class_names = ['unlabelled', 'road', 'sidewalk', 'building', 'wall', 'fence',\
+                            'pole', 'traffic_light', 'traffic_sign', 'vegetation', 'terrain',\
+                            'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', \
+                            'motorcycle', 'bicycle']
+
         self.class_map = dict(zip(self.valid_classes, range(1,20))) 
 
         if not self.files[split]:
@@ -138,9 +144,9 @@ class cityscapesLoader(data.Dataset):
             b[temp == l] = self.label_colours[l][2]
 
         rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
-        rgb[:, :, 0] = r
-        rgb[:, :, 1] = g
-        rgb[:, :, 2] = b
+        rgb[:, :, 0] = r / 255.0
+        rgb[:, :, 1] = g / 255.0
+        rgb[:, :, 2] = b / 255.0
         return rgb
 
     def encode_segmap(self, mask):
@@ -155,16 +161,19 @@ if __name__ == '__main__':
     import torchvision
     import matplotlib.pyplot as plt
 
-    local_path = '/home/meet/datasets/cityscapes/'
+    local_path = '/home/meetshah1995/datasets/cityscapes/'
     dst = cityscapesLoader(local_path, is_transform=True)
     trainloader = data.DataLoader(dst, batch_size=4, num_workers=0)
     for i, data in enumerate(trainloader):
         imgs, labels = data
-        if i == 2:
-            img = torchvision.utils.make_grid(imgs).numpy()
-            img = np.transpose(img, (1, 2, 0))
-            img = img[:, :, ::-1]
-            plt.imshow(img)
-            plt.show()
-            plt.imshow(dst.decode_segmap(labels.numpy()[i+1]))
-            plt.show()
+        img = imgs.numpy()[0, ::-1, :, :]
+        img = np.transpose(img, [1,2,0])
+        f, axarr = plt.subplots(2,1)
+        axarr[0].imshow(img)
+        axarr[1].imshow(dst.decode_segmap(labels.numpy()[0]))
+        plt.show()
+        a = raw_input()
+        if a == 'ex':
+            break
+        else:
+            plt.close()
