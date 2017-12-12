@@ -1,7 +1,7 @@
 matplotlib==2.0.0
 numpy==1.12.1
 scipy==0.19.0
-torch==0.1.12.post2
-torchvision==0.1.7
+torch==0.3.0.post4
+torchvision==0.2.0
 tqdm==4.11.2
 visdom==0.1.1

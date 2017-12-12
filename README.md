@@ -14,6 +14,7 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * [FCN](https://arxiv.org/abs/1411.4038) - All 1( FCN8s), 2 (FCN16s) and 3 (FCN8s) stream variants
 * [U-Net](https://arxiv.org/abs/1505.04597) - With optional deconvolution and batchnorm
 * [Link-Net](https://codeac29.github.io/projects/linknet/)
+* [FRRN](https://arxiv.org/abs/1611.08323) - Model A and B
 
 #### Upcoming 
 
@@ -38,8 +39,8 @@ This repository aims at mirroring popular semantic segmentation architectures in
 
 ### Requirements
 
-* pytorch >=0.2.0
-* torchvision ==0.1.7
+* pytorch >=0.3.0
+* torchvision ==0.2.0
 * visdom >=1.0.1 (for loss and results visualization)
 * scipy
 * tqdm
