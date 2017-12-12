@@ -5,7 +5,7 @@ from ptsemseg.models.segnet import *
 from ptsemseg.models.unet import *
 from ptsemseg.models.pspnet import *
 from ptsemseg.models.linknet import *
-
+from ptsemseg.models.frrn import *
 
 
 def get_model(name, n_classes):
@@ -41,4 +41,5 @@ def _get_model_instance(name):
         'segnet': segnet,
         'pspnet': pspnet,
         'linknet': linknet,
+        'frnn': frrn,
     }[name]

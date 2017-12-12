@@ -230,3 +230,40 @@ class linknetUp(nn.Module):
         x = self.deconvbnrelu2(x)
         x = self.convbnrelu3(x)
         return x
+
+
+class FRRU(nn.Module):
+    def __init__(self, prev_channels, out_channels, scale):
+        super(FRRU, self).__init__()
+        self.scale = scale
+        self.prev_channels = prev_channels
+        self.out_channels = out_channels
+
+        self.conv1 = conv2DBatchNormRelu(prev_channels + 32, out_channels, k_size=3, stride=strides, padding=1)
+        self.conv2 = conv2DBatchNormRelu(out_channels, out_channels, k_size=3, stride=strides, padding=1)
+        self.conv_res = nn.Conv2d(out_channels, 32, kernel_size=1, stride=1, padding=1)
+
+    def forward(self, y, z):
+        x = torch.stack([y, nn.MaxPool2d(scale, scale)(z)], dim=1)
+        y_prime = self.conv1(x)
+        y_prime = self.conv2(y_prime)
+
+        x = self.conv_res(y_prime)
+        x = F.upsample_nearest(x, size=y_prime.shape[:-2]*self.scale) 
+        z_prime = z + x
+
+        return y_prime, z_prime
+
+
+class RU(nn.Module):
+    def __init__(self, channels, kernel_size=3, strides=1):
+        super(RU, self).__init__()
+
+        self.conv1 = conv2DBatchNormRelu(channels, channels, k_size=kernel_size, stride=strides, padding=1)
+        self.conv2 = conv2DBatchNorm(channels, channels, k_size=kernel_size, stride=strides, padding=1)
+
+    def forward(self, x):
+        incoming = x
+        x = self.conv1(x)
+        x = self.conv2(x)
+        return x + incoming
