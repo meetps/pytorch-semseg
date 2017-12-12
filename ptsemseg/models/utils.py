@@ -239,12 +239,12 @@ class FRRU(nn.Module):
         self.prev_channels = prev_channels
         self.out_channels = out_channels
 
-        self.conv1 = conv2DBatchNormRelu(prev_channels + 32, out_channels, k_size=3, stride=strides, padding=1)
-        self.conv2 = conv2DBatchNormRelu(out_channels, out_channels, k_size=3, stride=strides, padding=1)
+        self.conv1 = conv2DBatchNormRelu(prev_channels + 32, out_channels, k_size=3, stride=1, padding=1)
+        self.conv2 = conv2DBatchNormRelu(out_channels, out_channels, k_size=3, stride=1, padding=1)
         self.conv_res = nn.Conv2d(out_channels, 32, kernel_size=1, stride=1, padding=1)
 
     def forward(self, y, z):
-        x = torch.stack([y, nn.MaxPool2d(scale, scale)(z)], dim=1)
+        x = torch.cat([y, nn.MaxPool2d(self.scale, self.scale)(z)], dim=1)
         y_prime = self.conv1(x)
         y_prime = self.conv2(y_prime)
 
