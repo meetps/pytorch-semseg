@@ -42,9 +42,9 @@ def test(args):
 
     if torch.cuda.is_available():
         model.cuda(0)
-        images = Variable(img.cuda(0))
+        images = Variable(img.cuda(0), volatile=True)
     else:
-        images = Variable(img)
+        images = Variable(img, volatile=True)
 
     outputs = model(images)
     pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)

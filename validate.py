@@ -8,11 +8,15 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 from torch.autograd import Variable
+from torch.backends import cudnn
 from torch.utils import data
+
 from tqdm import tqdm
 
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.metrics import scores
+
+cudnn.benchmark = True
 
 def validate(args):
 
@@ -31,10 +35,10 @@ def validate(args):
     for i, (images, labels) in tqdm(enumerate(valloader)):
         if torch.cuda.is_available():
             model.cuda()
-            images = Variable(images.cuda())
+            images = Variable(images.cuda(), volatile=True)
             labels = Variable(labels.cuda())
         else:
-            images = Variable(images)
+            images = Variable(images, volatile=True)
             labels = Variable(labels)
 
         outputs = model(images)
