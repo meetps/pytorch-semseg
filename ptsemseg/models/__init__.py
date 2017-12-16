@@ -27,19 +27,23 @@ def get_model(name, n_classes):
                       is_batchnorm=True,
                       in_channels=3,
                       is_deconv=True)
+    
     else:
-        raise 'Model {} not available'.format(name)
+        model = model(n_classes=n_classes)
 
     return model
 
 def _get_model_instance(name):
-    return {
-        'fcn32s': fcn32s,
-        'fcn8s': fcn8s,
-        'fcn16s': fcn16s,
-        'unet': unet,
-        'segnet': segnet,
-        'pspnet': pspnet,
-        'linknet': linknet,
-        'frrn': frrn,
-    }[name]
+    try:
+        return {
+            'fcn32s': fcn32s,
+            'fcn8s': fcn8s,
+            'fcn16s': fcn16s,
+            'unet': unet,
+            'segnet': segnet,
+            'pspnet': pspnet,
+            'linknet': linknet,
+            'frrn': frrn,
+        }[name]
+    except:
+        print('Model {} not available'.format(name))
