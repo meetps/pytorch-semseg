@@ -95,7 +95,7 @@ class frrn(nn.Module):
             y_pooled = F.max_pool2d(y, stride=2, kernel_size=2, padding=0)
             # pass through encoding FRRUs
             for block in range(n_blocks):
-                key = '_'.join(map(str,['encoding_frru' n_blocks, channels, scale, block]))
+                key = '_'.join(map(str,['encoding_frru', n_blocks, channels, scale, block]))
                 y, z = getattr(self, key)(y_pooled, z)
             prev_channels = channels
 
