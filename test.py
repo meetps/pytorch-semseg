@@ -47,8 +47,8 @@ def test(args):
         images = Variable(img)
 
     outputs = model(images)
-    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=1)
-    decoded = loader.decode_segmap(pred[0])
+    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
+    decoded = loader.decode_segmap(pred)
     print(np.unique(pred))
     misc.imsave(args.out_path, decoded)
     print("Segmentation Mask Saved at: {}".format(args.out_path))

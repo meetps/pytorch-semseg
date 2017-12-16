@@ -30,15 +30,15 @@ def validate(args):
     gts, preds = [], []
     for i, (images, labels) in tqdm(enumerate(valloader)):
         if torch.cuda.is_available():
-            model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
-            images = Variable(images.cuda(0))
-            labels = Variable(labels.cuda(0))
+            model.cuda()
+            images = Variable(images.cuda())
+            labels = Variable(labels.cuda())
         else:
             images = Variable(images)
             labels = Variable(labels)
 
         outputs = model(images)
-        pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=1)
+        pred = outputs.data.max(1)[1].cpu().numpy()
         gt = labels.data.cpu().numpy()
         
         for gt_, pred_ in zip(gt, pred):

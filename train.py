@@ -25,9 +25,10 @@ def train(args):
     trainloader = data.DataLoader(loader, batch_size=args.batch_size, num_workers=4, shuffle=True)
 
     # Setup visdom for visualization
-    vis = visdom.Visdom()
+    if args.visdom:
+        vis = visdom.Visdom()
 
-    loss_window = vis.line(X=torch.zeros((1,)).cpu(),
+        loss_window = vis.line(X=torch.zeros((1,)).cpu(),
                            Y=torch.zeros((1)).cpu(),
                            opts=dict(xlabel='minibatches',
                                      ylabel='Loss',
@@ -37,24 +38,14 @@ def train(args):
     # Setup Model
     model = get_model(args.arch, n_classes)
     
-    if torch.cuda.is_available():
-        model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
-        test_image, test_segmap = loader[0]
-        test_image = Variable(test_image.unsqueeze(0).cuda(0))
-    else:
-        test_image, test_segmap = loader[0]
-        test_image = Variable(test_image.unsqueeze(0))
-
+    model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
+    model.cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.l_rate, momentum=0.99, weight_decay=5e-4)
 
     for epoch in range(args.n_epoch):
         for i, (images, labels) in enumerate(trainloader):
-            if torch.cuda.is_available():
-                images = Variable(images.cuda(0))
-                labels = Variable(labels.cuda(0))
-            else:
-                images = Variable(images)
-                labels = Variable(labels)
+            images = Variable(images.cuda())
+            labels = Variable(labels.cuda())
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -64,22 +55,15 @@ def train(args):
             loss.backward()
             optimizer.step()
 
-            vis.line(
-                X=torch.ones((1, 1)).cpu() * i,
-                Y=torch.Tensor([loss.data[0]]).unsqueeze(0).cpu(),
-                win=loss_window,
-                update='append')
+            if args.visdom:
+                vis.line(
+                    X=torch.ones((1, 1)).cpu() * i,
+                    Y=torch.Tensor([loss.data[0]]).unsqueeze(0).cpu(),
+                    win=loss_window,
+                    update='append')
 
             if (i+1) % 20 == 0:
                 print("Epoch [%d/%d] Loss: %.4f" % (epoch+1, args.n_epoch, loss.data[0]))
-
-        # test_output = model(test_image)
-        # predicted = loader.decode_segmap(test_output[0].cpu().data.numpy().argmax(0))
-        # target = loader.decode_segmap(test_segmap.numpy())
-
-        # vis.image(test_image[0].cpu().data.numpy(), opts=dict(title='Input' + str(epoch)))
-        # vis.image(np.transpose(target, [2,0,1]), opts=dict(title='GT' + str(epoch)))
-        # vis.image(np.transpose(predicted, [2,0,1]), opts=dict(title='Predicted' + str(epoch)))
 
         torch.save(model, "{}_{}_{}_{}.pkl".format(args.arch, args.dataset, args.feature_scale, epoch))
 
@@ -101,5 +85,7 @@ if __name__ == '__main__':
                         help='Learning Rate')
     parser.add_argument('--feature_scale', nargs='?', type=int, default=1, 
                         help='Divider for # of features to use')    
+    parser.add_argument('--visdom', nargs='?', type=bool, default=False, 
+                        help='Show visualization(s) on visdom | False by  default')
     args = parser.parse_args()
     train(args)
