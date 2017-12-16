@@ -233,6 +233,9 @@ class linknetUp(nn.Module):
 
 
 class FRRU(nn.Module):
+    """
+    Full Resolution Residual Unit for FRRN
+    """
     def __init__(self, prev_channels, out_channels, scale):
         super(FRRU, self).__init__()
         self.scale = scale
@@ -257,6 +260,9 @@ class FRRU(nn.Module):
 
 
 class RU(nn.Module):
+    """
+    Residual Unit for FRRN
+    """
     def __init__(self, channels, kernel_size=3, strides=1):
         super(RU, self).__init__()
 
@@ -268,3 +274,56 @@ class RU(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         return x + incoming
+
+
+class residualConvUnit(nn.Module):
+    def __init__(self, channels, kernel_size=3):
+        super(residualConvUnit, self).__init__()
+        
+        self.residual_conv_unit = nn.Sequential(nn.ReLU(inplace=True)
+                                                nn.Conv2d(channels, channels, kernel_size=kernel_size),
+                                                nn.ReLU(inplace=True),
+                                                nn.Conv2d(channels, channels, kernel_size=kernel_size),)
+    def forward(self, x):
+        input = x
+        x = self.residual_conv_unit(x)
+        return x + input
+
+class multiResolutionFusion(nn.Module):
+    def __init__(self, channels, up_scale_high, up_scale_low, high_shape, low_shape):
+        super(multiResolutionFusion, self).__init__()
+        
+        self.up_scale_high = up_scale_high
+        self.up_scale_low = up_scale_low
+
+        self.conv_high = nn.Conv2d(high_shape[1], channels, kernel_size=3)
+
+        if low_shape is not None:
+            self.conv_low = nn.Conv2d(low_shape[1], channels, kernel_size=3)
+
+    def forward(self, x_high, x_low):
+        high_upsampled = F.upsample(self.conv_high(x_high), 
+                                    scale_factor=self.up_scale_high, 
+                                    mode='bilinear')
+
+        if x_low is None:
+            return high_upsampled
+
+        low_upsampled = F.upsample(self.conv_low(x_low),
+                                   scale_factor=self.up_scale_low, 
+                                   mode='bilinear')
+
+        return low_upsampled + high_upsampled
+
+class chainedResidualPooling(nn.Module):
+    def __init__(self, channels, input_shape):
+        super(chainedResidualPooling, self).__init__()
+        
+        self.chained_residual_pooling = nn.Sequential(nn.ReLU(inplace=True)
+                                                      nn.MaxPool2d(5, 1, 2),
+                                                      nn.Conv2d(input_shape[1], channels, kernel_size=3),)
+
+    def forward(self, x):
+        input = x
+        x = self.chained_residual_pooling(x)
+        return x + input
