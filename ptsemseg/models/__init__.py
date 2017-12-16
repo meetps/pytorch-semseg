@@ -41,5 +41,5 @@ def _get_model_instance(name):
         'segnet': segnet,
         'pspnet': pspnet,
         'linknet': linknet,
-        'frnn': frrn,
+        'frrn': frrn,
     }[name]
