@@ -102,7 +102,7 @@ class frrn(nn.Module):
         # decoding
         for n_blocks, channels, scale in self.decoder_frru_specs:
             # bilinear upsample smaller feature map
-            upsample_size = torch.Size([_s*2 for _s in y.shape[-2:]]) 
+            upsample_size = torch.Size([_s*2 for _s in y.size()[-2:]]) 
             y_upsampled = F.upsample(y, size=upsample_size, mode='bilinear')
             # pass through decoding FRRUs
             for block in range(n_blocks):
