@@ -42,7 +42,7 @@ class cityscapesLoader(data.Dataset):
 
     label_colours = dict(zip(range(20), colors))
 
-    def __init__(self, root, split="train", is_transform=False, img_size=(1024, 2048)):
+    def __init__(self, root, split="train", is_transform=False, img_size=(256, 512)):
         """__init__
 
         :param root:
