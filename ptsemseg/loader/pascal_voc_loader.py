@@ -11,16 +11,21 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torch.utils import data
 
+from ptsemseg.augmentations import *
+
+
 def get_data_path(name):
     js = open('config.json').read()
     data = json.loads(js)
     return data[name]['data_path']
 
 class pascalVOCLoader(data.Dataset):
-    def __init__(self, root, split="train_aug", is_transform=False, img_size=512):
+    def __init__(self, root, split="train_aug", 
+                 is_transform=False, img_size=512, augmentations=None):
         self.root = root
         self.split = split
         self.is_transform = is_transform
+        self.augmentations = augmentations
         self.n_classes = 21
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
@@ -48,7 +53,10 @@ class pascalVOCLoader(data.Dataset):
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
-        lbl = np.array(lbl, dtype=np.int32)
+        lbl = np.array(lbl, dtype=np.int8)
+
+        if self.augmentations is not None:
+            img, lbl = self.augmentations(img, lbl)
 
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
@@ -104,9 +112,9 @@ class pascalVOCLoader(data.Dataset):
             b[temp == l] = label_colours[l, 2]
 
         rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
-        rgb[:, :, 0] = r
-        rgb[:, :, 1] = g
-        rgb[:, :, 2] = b
+        rgb[:, :, 0] = r / 255.0
+        rgb[:, :, 1] = g / 255.0
+        rgb[:, :, 2] = b / 255.0
         if plot:
             plt.imshow(rgb)
             plt.show()
@@ -141,16 +149,23 @@ class pascalVOCLoader(data.Dataset):
                 m.imsave(target_path + i + '.png', lbl)
 
 if __name__ == '__main__':
-    local_path = '/home/gpu_users/meetshah/segdata/pascal/VOCdevkit/VOC2012'
-    dst = pascalVOCLoader(local_path, is_transform=True)
-    trainloader = data.DataLoader(dst, batch_size=4)
+    local_path = '/home/meetshah1995/datasets/VOCdevkit/VOC2012/'
+    augmentations = Compose([RandomRotate(10),
+                             RandomHorizontallyFlip()])
+    bs = 4
+    dst = pascalVOCLoader(root=local_path, is_transform=True, augmentations=augmentations)
+    trainloader = data.DataLoader(dst, batch_size=bs)
     for i, data in enumerate(trainloader):
         imgs, labels = data
-        if i == 0:
-            img = torchvision.utils.make_grid(imgs).numpy()
-            img = np.transpose(img, (1, 2, 0))
-            img = img[:, :, ::-1]
-            plt.imshow(img)
-            plt.show()
-            plt.imshow(dst.decode_segmap(labels.numpy()[i+1]))
-            plt.show()
+        imgs = imgs.numpy()[:, ::-1, :, :]
+        imgs = np.transpose(imgs, [0,2,3,1])
+        f, axarr = plt.subplots(bs, 2)
+        for j in range(bs):
+            axarr[j][0].imshow(imgs[j])
+            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
+        plt.show()
+        a = raw_input()
+        if a == 'ex':
+            break
+        else:
+            plt.close()

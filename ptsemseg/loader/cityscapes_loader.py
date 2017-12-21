@@ -6,6 +6,7 @@ import scipy.misc as m
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
+from ptsemseg.augmentations import *
 
 
 class cityscapesLoader(data.Dataset):
@@ -42,17 +43,20 @@ class cityscapesLoader(data.Dataset):
 
     label_colours = dict(zip(range(20), colors))
 
-    def __init__(self, root, split="train", is_transform=False, img_size=(256, 512)):
+    def __init__(self, root, split="train", is_transform=False, 
+                 img_size=(256, 512), augmentations=None):
         """__init__
 
         :param root:
         :param split:
         :param is_transform:
         :param img_size:
+        :param augmentations 
         """
         self.root = root
         self.split = split
         self.is_transform = is_transform
+        self.augmentations = augmentations
         self.n_classes = 20
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
@@ -97,6 +101,9 @@ class cityscapesLoader(data.Dataset):
         lbl = m.imread(lbl_path)
         lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
         
+        if self.augmentations is not None:
+            img, lbl = self.augmentations(img, lbl)
+
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
 
@@ -161,16 +168,22 @@ if __name__ == '__main__':
     import torchvision
     import matplotlib.pyplot as plt
 
+    augmentations = Compose([Scale(2048),
+                             RandomRotate(10),
+                             RandomHorizontallyFlip()])
+
     local_path = '/home/meetshah1995/datasets/cityscapes/'
-    dst = cityscapesLoader(local_path, is_transform=True)
-    trainloader = data.DataLoader(dst, batch_size=4, num_workers=0)
+    dst = cityscapesLoader(local_path, is_transform=True, augmentations=augmentations)
+    bs = 4
+    trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)
     for i, data in enumerate(trainloader):
         imgs, labels = data
-        img = imgs.numpy()[0, ::-1, :, :]
-        img = np.transpose(img, [1,2,0])
-        f, axarr = plt.subplots(2,1)
-        axarr[0].imshow(img)
-        axarr[1].imshow(dst.decode_segmap(labels.numpy()[0]))
+        imgs = imgs.numpy()[:, ::-1, :, :]
+        imgs = np.transpose(imgs, [0,2,3,1])
+        f, axarr = plt.subplots(bs,2)
+        for j in range(bs):      
+            axarr[j][0].imshow(imgs[j])
+            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
         plt.show()
         a = raw_input()
         if a == 'ex':
