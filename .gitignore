@@ -5,6 +5,7 @@ __pycache__/
 
 # Torch Models
 *.pkl
+current_train.py
 
 # C extensions
 *.so

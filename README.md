@@ -102,7 +102,13 @@ python validate.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
 
 ```
 python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
-               [--img_path [IMG_PATH]] [--out_path [OUT_PATH]]
+               [--dcrf [DCRF]] [--img_path [IMG_PATH]] [--out_path [OUT_PATH]]
+ 
+  --model_path          Path to the saved model
+  --dataset             Dataset to use ['pascal, camvid, ade20k etc']
+  --dcrf                Enable DenseCRF based post-processing
+  --img_path            Path of the input image
+  --out_path            Path of the output segmap
 ```
 
 ### Contributors 
