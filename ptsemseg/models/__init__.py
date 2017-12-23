@@ -43,7 +43,8 @@ def _get_model_instance(name):
             'segnet': segnet,
             'pspnet': pspnet,
             'linknet': linknet,
-            'frrn': frrn,
+            'frrnA': frrnA,
+            'frrnB': frrnB,
         }[name]
     except:
         print('Model {} not available'.format(name))

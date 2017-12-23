@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 from ptsemseg.models.utils import *
 
-class frrn(nn.Module):
+class frrnA(nn.Module):
     """
     Full Resolution Residual Networks for Semantic Segmentation
     URL: https://arxiv.org/abs/1611.08323
@@ -14,7 +14,7 @@ class frrn(nn.Module):
     """
 
     def __init__(self, n_classes=21):
-        super(frrn, self).__init__()
+        super(frrnA, self).__init__()
         self.n_classes = n_classes
 
         self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
@@ -124,3 +124,20 @@ class frrn(nn.Module):
         x = self.classif_conv(x)
         
         return x
+
+class frrnB(frrnA):
+
+    def __init__(self, n_classes=21):
+        super(frrnB, self).__init__()
+
+        # each spec is as (n_blocks, channels, scale)
+        self.encoder_frru_specs = [[3, 96, 2],
+                                  [4, 192, 4],
+                                  [2, 384,  8],
+                                  [2, 384,  16],
+                                  [2, 384,  32]]
+        
+        self.decoder_frru_specs = [[2, 192, 16],
+                                  [2, 192, 8],
+                                  [2, 192, 4],
+                                  [2, 96,  2]]
