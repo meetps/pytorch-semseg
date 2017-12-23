@@ -3,7 +3,34 @@ import torch.nn.functional as F
 
 from ptsemseg.models.utils import *
 
-class frrnA(nn.Module):
+frrn_specs_dic = {
+    'A': 
+    {
+        'encoder': [[3, 96, 2],
+                    [4, 192, 4],
+                    [2, 384,  8],
+                    [2, 384,  16]],
+        
+        'decoder':  [[2, 192, 8],
+                     [2, 192, 4],
+                     [2, 96,  2]],
+    },
+
+    'B': 
+    {
+        'encoder': [[3, 96, 2],
+                    [4, 192, 4],
+                    [2, 384, 8],
+                    [2, 384, 16],
+                    [2, 384, 32]],
+        
+        'decoder':  [[2, 192, 16],
+                     [2, 192, 8],
+                     [2, 192, 4],
+                     [2, 96,  2]],
+    },}
+
+class frrn(nn.Module):
     """
     Full Resolution Residual Networks for Semantic Segmentation
     URL: https://arxiv.org/abs/1611.08323
@@ -13,9 +40,10 @@ class frrnA(nn.Module):
     2) TF implementation by @kiwonjoon: https://github.com/hiwonjoon/tf-frrn
     """
 
-    def __init__(self, n_classes=21):
-        super(frrnA, self).__init__()
+    def __init__(self, n_classes=21, model_type=None):
+        super(frrn, self).__init__()
         self.n_classes = n_classes
+        self.model_type = model_type
 
         self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
 
@@ -35,14 +63,9 @@ class frrnA(nn.Module):
                                     bias=True)
 
         # each spec is as (n_blocks, channels, scale)
-        self.encoder_frru_specs = [[3, 96, 2],
-                                  [4, 192, 4],
-                                  [2, 384,  8],
-                                  [2, 384,  16]]
+        self.encoder_frru_specs = frrn_specs_dic[self.model_type]['encoder']
         
-        self.decoder_frru_specs = [[2, 192, 8],
-                                  [2, 192, 4],
-                                  [2, 96,  2]]
+        self.decoder_frru_specs = frrn_specs_dic[self.model_type]['decoder']
 
         # encoding
         prev_channels = 48
@@ -124,20 +147,3 @@ class frrnA(nn.Module):
         x = self.classif_conv(x)
         
         return x
-
-class frrnB(frrnA):
-
-    def __init__(self, n_classes=21):
-        super(frrnB, self).__init__()
-
-        # each spec is as (n_blocks, channels, scale)
-        self.encoder_frru_specs = [[3, 96, 2],
-                                  [4, 192, 4],
-                                  [2, 384,  8],
-                                  [2, 384,  16],
-                                  [2, 384,  32]]
-        
-        self.decoder_frru_specs = [[2, 192, 16],
-                                  [2, 192, 8],
-                                  [2, 192, 4],
-                                  [2, 96,  2]]

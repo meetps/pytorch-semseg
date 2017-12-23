@@ -11,6 +11,9 @@ from ptsemseg.models.frrn import *
 def get_model(name, n_classes):
     model = _get_model_instance(name)
 
+    if name in ['frrnA', 'frrnB']:
+        model = model(n_classes, model_type=name[-1])
+
     if name in ['fcn32s', 'fcn16s', 'fcn8s']:
         model = model(n_classes=n_classes)
         vgg16 = models.vgg16(pretrained=True)
@@ -43,8 +46,8 @@ def _get_model_instance(name):
             'segnet': segnet,
             'pspnet': pspnet,
             'linknet': linknet,
-            'frrnA': frrnA,
-            'frrnB': frrnB,
+            'frrnA': frrn,
+            'frrnB': frrn,
         }[name]
     except:
         print('Model {} not available'.format(name))
