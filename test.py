@@ -12,7 +12,9 @@ from torch.autograd import Variable
 from torch.utils import data
 from tqdm import tqdm
 
+from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
+from ptsemseg.utils import convert_state_dict
 
 try:
     import pydensecrf.densecrf as dcrf
@@ -44,15 +46,17 @@ def test(args):
     img = torch.from_numpy(img).float()
 
     # Setup Model
-    model = torch.load(args.model_path)
+    model = get_model(args.model_path[:args.model_path.find('_')], n_classes)
+    state = convert_state_dict(torch.load(args.model_path)['model_state'])
+    model.load_state_dict(state)
     model.eval()
-
+    
     model.cuda(0)
     images = Variable(img.cuda(0), volatile=True)
 
     outputs = F.softmax(model(images), dim=1)
     
-    if args.dcrf:
+    if args.dcrf == "True":
         unary = outputs.data.cpu().numpy()
         unary = np.squeeze(unary, 0)
         unary = -np.log(unary)
@@ -87,7 +91,7 @@ if __name__ == '__main__':
                         help='Path to the saved model')
     parser.add_argument('--dataset', nargs='?', type=str, default='pascal', 
                         help='Dataset to use [\'pascal, camvid, ade20k etc\']')
-    parser.add_argument('--dcrf', nargs='?', type=bool, default=False,
+    parser.add_argument('--dcrf', nargs='?', type=str, default="False",
                         help='Enable DenseCRF based post-processing')
     parser.add_argument('--img_path', nargs='?', type=str, default=None, 
                         help='Path of the input image')
