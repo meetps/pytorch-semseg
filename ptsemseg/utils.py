@@ -3,6 +3,7 @@ Misc Utility functions
 '''
 
 import os
+import numpy as np
 
 def recursive_glob(rootdir='.', suffix=''):
     """Performs recursive glob with given suffix and rootdir 
@@ -34,3 +35,15 @@ def adjust_learning_rate(optimizer, init_lr, epoch):
     lr = init_lr * (0.1 ** (epoch // 30))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+
+def alpha_blend(input_image, segmentation_mask, alpha=0.5):
+    """Alpha Blending utility to overlay RGB masks on RBG images 
+        :param input_image is a np.ndarray with 3 channels
+        :param segmentation_mask is a np.ndarray with 3 channels
+        :param alpha is a float value
+
+    """
+    blended = np.zeros(input_image.size, dtype=np.float32)
+    blended = input_image * alpha + segmentation_mask * (1 - alpha)
+    return blended
