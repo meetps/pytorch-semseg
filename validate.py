@@ -14,6 +14,8 @@ from tqdm import tqdm
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.metrics import runningScore
 
+torch.backends.cudnn.benchmark = True
+
 def validate(args):
 
     # Setup Dataloader
@@ -29,13 +31,9 @@ def validate(args):
     model.eval()
 
     for i, (images, labels) in tqdm(enumerate(valloader)):
-        if torch.cuda.is_available():
-            model.cuda()
-            images = Variable(images.cuda())
-            labels = Variable(labels.cuda())
-        else:
-            images = Variable(images)
-            labels = Variable(labels)
+        model.cuda()
+        images = Variable(images.cuda(), volatile=True)
+        labels = Variable(labels.cuda(), volatile=True)
 
         outputs = model(images)
         pred = outputs.data.max(1)[1].cpu().numpy()
