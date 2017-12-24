@@ -47,3 +47,17 @@ def alpha_blend(input_image, segmentation_mask, alpha=0.5):
     blended = np.zeros(input_image.size, dtype=np.float32)
     blended = input_image * alpha + segmentation_mask * (1 - alpha)
     return blended
+
+def convert_state_dict(state_dict):
+    """Converts a state dict saved from a dataParallel module to normal 
+       module state_dict inplace
+       :param state_dict is the loaded DataParallel model_state
+    
+    """
+    
+    for k, v in state_dict.items():
+        name = k[7:] # remove `module.`
+        state_dict[name] = v
+        del state_dict[k]
+    return state_dict
+

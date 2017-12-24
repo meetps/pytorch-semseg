@@ -11,8 +11,10 @@ from torch.autograd import Variable
 from torch.utils import data
 from tqdm import tqdm
 
+from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.metrics import runningScore
+from ptsemseg.utils import convert_state_dict
 
 torch.backends.cudnn.benchmark = True
 
@@ -27,7 +29,9 @@ def validate(args):
     running_metrics = runningScore(n_classes)
 
     # Setup Model
-    model = torch.load(args.model_path)
+    model = get_model(args.model_path[:args.model_path.find('_')], n_classes)
+    state = convert_state_dict(torch.load(args.model_path)['model_state'])
+    model.load_state_dict(state)
     model.eval()
 
     for i, (images, labels) in tqdm(enumerate(valloader)):

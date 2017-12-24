@@ -13,7 +13,6 @@ from torch.utils import data
 from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
 from ptsemseg.loss import cross_entropy2d
-from ptsemseg.metrics import scores
 
 def train(args):
 
