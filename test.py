@@ -13,7 +13,6 @@ from torch.utils import data
 from tqdm import tqdm
 
 from ptsemseg.loader import get_loader, get_data_path
-from ptsemseg.metrics import scores
 
 try:
     import pydensecrf.densecrf as dcrf
@@ -48,11 +47,8 @@ def test(args):
     model = torch.load(args.model_path)
     model.eval()
 
-    if torch.cuda.is_available():
-        model.cuda(0)
-        images = Variable(img.cuda(0))
-    else:
-        images = Variable(img)
+    model.cuda(0)
+    images = Variable(img.cuda(0), volatile=True)
 
     outputs = F.softmax(model(images), dim=1)
     
