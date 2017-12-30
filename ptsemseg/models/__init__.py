@@ -11,7 +11,10 @@ from ptsemseg.models.frrn import *
 def get_model(name, n_classes):
     model = _get_model_instance(name)
 
-    if name in ['fcn32s', 'fcn16s', 'fcn8s']:
+    if name in ['frrnA', 'frrnB']:
+        model = model(n_classes, model_type=name[-1])
+
+    elif name in ['fcn32s', 'fcn16s', 'fcn8s']:
         model = model(n_classes=n_classes)
         vgg16 = models.vgg16(pretrained=True)
         model.init_vgg16_params(vgg16)
@@ -27,19 +30,24 @@ def get_model(name, n_classes):
                       is_batchnorm=True,
                       in_channels=3,
                       is_deconv=True)
+    
     else:
-        raise 'Model {} not available'.format(name)
+        model = model(n_classes=n_classes)
 
     return model
 
 def _get_model_instance(name):
-    return {
-        'fcn32s': fcn32s,
-        'fcn8s': fcn8s,
-        'fcn16s': fcn16s,
-        'unet': unet,
-        'segnet': segnet,
-        'pspnet': pspnet,
-        'linknet': linknet,
-        'frrn': frrn,
-    }[name]
+    try:
+        return {
+            'fcn32s': fcn32s,
+            'fcn8s': fcn8s,
+            'fcn16s': fcn16s,
+            'unet': unet,
+            'segnet': segnet,
+            'pspnet': pspnet,
+            'linknet': linknet,
+            'frrnA': frrn,
+            'frrnB': frrn,
+        }[name]
+    except:
+        print('Model {} not available'.format(name))

@@ -5,3 +5,4 @@ torch==0.3.0.post4
 torchvision==0.2.0
 tqdm==4.11.2
 visdom==0.1.1
+pydensecrf

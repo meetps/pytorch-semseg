@@ -3,6 +3,33 @@ import torch.nn.functional as F
 
 from ptsemseg.models.utils import *
 
+frrn_specs_dic = {
+    'A': 
+    {
+        'encoder': [[3, 96, 2],
+                    [4, 192, 4],
+                    [2, 384,  8],
+                    [2, 384,  16]],
+        
+        'decoder':  [[2, 192, 8],
+                     [2, 192, 4],
+                     [2, 96,  2]],
+    },
+
+    'B': 
+    {
+        'encoder': [[3, 96, 2],
+                    [4, 192, 4],
+                    [2, 384, 8],
+                    [2, 384, 16],
+                    [2, 384, 32]],
+        
+        'decoder':  [[2, 192, 16],
+                     [2, 192, 8],
+                     [2, 192, 4],
+                     [2, 96,  2]],
+    },}
+
 class frrn(nn.Module):
     """
     Full Resolution Residual Networks for Semantic Segmentation
@@ -13,9 +40,10 @@ class frrn(nn.Module):
     2) TF implementation by @kiwonjoon: https://github.com/hiwonjoon/tf-frrn
     """
 
-    def __init__(self, n_classes=21):
+    def __init__(self, n_classes=21, model_type=None):
         super(frrn, self).__init__()
         self.n_classes = n_classes
+        self.model_type = model_type
 
         self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
 
@@ -35,14 +63,9 @@ class frrn(nn.Module):
                                     bias=True)
 
         # each spec is as (n_blocks, channels, scale)
-        self.encoder_frru_specs = [[3, 96, 2],
-                                  [4, 192, 4],
-                                  [2, 384,  8],
-                                  [2, 384,  16]]
+        self.encoder_frru_specs = frrn_specs_dic[self.model_type]['encoder']
         
-        self.decoder_frru_specs = [[2, 192, 8],
-                                  [2, 192, 4],
-                                  [2, 96,  2]]
+        self.decoder_frru_specs = frrn_specs_dic[self.model_type]['decoder']
 
         # encoding
         prev_channels = 48
@@ -102,7 +125,7 @@ class frrn(nn.Module):
         # decoding
         for n_blocks, channels, scale in self.decoder_frru_specs:
             # bilinear upsample smaller feature map
-            upsample_size = torch.Size([_s*2 for _s in y.shape[-2:]]) 
+            upsample_size = torch.Size([_s*2 for _s in y.size()[-2:]]) 
             y_upsampled = F.upsample(y, size=upsample_size, mode='bilinear')
             # pass through decoding FRRUs
             for block in range(n_blocks):
