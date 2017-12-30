@@ -59,7 +59,7 @@ class cityscapesLoader(data.Dataset):
         self.augmentations = augmentations
         self.n_classes = 20
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        self.mean = np.array([104.00699, 116.66877, 122.67892])
+        self.mean = np.array([73.15835921, 82.90891754, 72.39239876])
         self.files = {}
 
         self.images_base = os.path.join(self.root, 'leftImg8bit', self.split)
