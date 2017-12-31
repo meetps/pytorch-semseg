@@ -110,6 +110,8 @@ def train(args):
             running_metrics.update(gt, pred)
 
         score, class_iou = running_metrics.get_scores()
+        for k, v in score.items():
+            print(k, v)
         running_metrics.reset()
 
         if score['Mean IoU : \t'] >= best_iou:
