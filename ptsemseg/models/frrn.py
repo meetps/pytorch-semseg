@@ -46,7 +46,7 @@ class frrn(nn.Module):
         super(frrn, self).__init__()
         self.n_classes = n_classes
         self.model_type = model_type
-        self.K = 64
+        self.K = 64 * 512
         self.loss = functools.partial(bootstrapped_cross_entropy2d, K=self.K)
 
         self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
@@ -151,3 +151,4 @@ class frrn(nn.Module):
         x = self.classif_conv(x)
         
         return x
+

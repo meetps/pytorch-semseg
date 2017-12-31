@@ -20,7 +20,7 @@ class cityscapesLoader(data.Dataset):
     Many Thanks to @fvisin for the loader repo:
     https://github.com/fvisin/dataset_loaders/blob/master/dataset_loaders/images/cityscapes.py
     """
-    colors = [[  0,   0,   0],
+    colors = [#[  0,   0,   0],
               [128,  64, 128],
               [244,  35, 232],
               [ 70,  70,  70],
@@ -41,7 +41,7 @@ class cityscapesLoader(data.Dataset):
               [  0,   0, 230],
               [119,  11,  32]]
 
-    label_colours = dict(zip(range(20), colors))
+    label_colours = dict(zip(range(19), colors))
 
     def __init__(self, root, split="train", is_transform=False, 
                  img_size=(512, 1024), augmentations=None):
@@ -57,7 +57,7 @@ class cityscapesLoader(data.Dataset):
         self.split = split
         self.is_transform = is_transform
         self.augmentations = augmentations
-        self.n_classes = 20
+        self.n_classes = 19
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([73.15835921, 82.90891754, 72.39239876])
         self.files = {}
@@ -74,7 +74,8 @@ class cityscapesLoader(data.Dataset):
                             'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', \
                             'motorcycle', 'bicycle']
 
-        self.class_map = dict(zip(self.valid_classes, range(1,20))) 
+        self.ignore_index = 250
+        self.class_map = dict(zip(self.valid_classes, range(19))) 
 
         if not self.files[split]:
             raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
@@ -103,7 +104,7 @@ class cityscapesLoader(data.Dataset):
         
         if self.augmentations is not None:
             img, lbl = self.augmentations(img, lbl)
-
+        
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
 
@@ -124,16 +125,18 @@ class cityscapesLoader(data.Dataset):
         img = img.astype(float) / 255.0
         # NHWC -> NCWH
         img = img.transpose(2, 0, 1)
-
+        
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
         lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), 'nearest', mode='F')
         lbl = lbl.astype(int)
+        
 
         if not np.all(classes == np.unique(lbl)):
             print("WARN: resizing labels yielded fewer classes")
 
-        if not np.all(np.unique(lbl) < self.n_classes):
+        if not np.all(np.unique(lbl[lbl!=self.ignore_index]) < self.n_classes):
+            print 'after det', classes,  np.unique(lbl) 
             raise ValueError("Segmentation map contained invalid class values")
 
         img = torch.from_numpy(img).float()
@@ -159,7 +162,7 @@ class cityscapesLoader(data.Dataset):
     def encode_segmap(self, mask):
         #Put all void classes to zero
         for _voidc in self.void_classes:
-            mask[mask==_voidc] = 0
+            mask[mask==_voidc] = self.ignore_index
         for _validc in self.valid_classes:
             mask[mask==_validc] = self.class_map[_validc]
         return mask

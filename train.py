@@ -26,7 +26,7 @@ def train(args):
     data_loader = get_loader(args.dataset)
     data_path = get_data_path(args.dataset)
     t_loader = data_loader(data_path, is_transform=True, img_size=(args.img_rows, args.img_cols), augmentations=data_aug)
-    v_loader = data_loader(data_path, is_transform=True, split='val', is_transform=True, img_size=(args.img_rows, args.img_cols))
+    v_loader = data_loader(data_path, is_transform=True, split='val', img_size=(args.img_rows, args.img_cols))
 
     n_classes = t_loader.n_classes
     trainloader = data.DataLoader(t_loader, batch_size=args.batch_size, num_workers=8, shuffle=True)
@@ -53,13 +53,14 @@ def train(args):
     model.cuda()
     
     # Check if model has custom optimizer / loss
-    if hasattr(model, 'optimizer'):
-        optimizer = model.optimizer
+    if hasattr(model.module, 'optimizer'):
+        optimizer = model.module.optimizer
     else:
         optimizer = torch.optim.SGD(model.parameters(), lr=args.l_rate, momentum=0.99, weight_decay=5e-4)
 
-    if hasattr(model, 'loss'):
-        loss_fn = model.loss
+    if hasattr(model.module, 'loss'):
+        print 'Using custom loss'
+        loss_fn = model.module.loss
     else:
         loss_fn = cross_entropy2d
 
@@ -84,7 +85,7 @@ def train(args):
             optimizer.zero_grad()
             outputs = model(images)
 
-            loss = loss_fn(outputs, labels)
+            loss = loss_fn(input=outputs, target=labels)
 
             loss.backward()
             optimizer.step()

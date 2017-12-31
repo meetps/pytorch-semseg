@@ -280,7 +280,7 @@ class residualConvUnit(nn.Module):
     def __init__(self, channels, kernel_size=3):
         super(residualConvUnit, self).__init__()
         
-        self.residual_conv_unit = nn.Sequential(nn.ReLU(inplace=True)
+        self.residual_conv_unit = nn.Sequential(nn.ReLU(inplace=True),
                                                 nn.Conv2d(channels, channels, kernel_size=kernel_size),
                                                 nn.ReLU(inplace=True),
                                                 nn.Conv2d(channels, channels, kernel_size=kernel_size),)
@@ -319,7 +319,7 @@ class chainedResidualPooling(nn.Module):
     def __init__(self, channels, input_shape):
         super(chainedResidualPooling, self).__init__()
         
-        self.chained_residual_pooling = nn.Sequential(nn.ReLU(inplace=True)
+        self.chained_residual_pooling = nn.Sequential(nn.ReLU(inplace=True),
                                                       nn.MaxPool2d(5, 1, 2),
                                                       nn.Conv2d(input_shape[1], channels, kernel_size=3),)
 

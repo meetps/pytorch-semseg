@@ -13,7 +13,8 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
 
     mask = target >= 0
     target = target[mask]
-    loss = F.nll_loss(log_p, target, weight=weight, size_average=False)
+    loss = F.nll_loss(log_p, target, ignore_index=250,
+                      weight=weight, size_average=False)
     if size_average:
         loss /= mask.data.sum()
     return loss
@@ -31,7 +32,8 @@ def bootstrapped_cross_entropy2d(input, target, K, weight=None, size_average=Tru
 
         mask = target >= 0
         target = target[mask]
-        loss = F.nll_loss(log_p, target, weight=weight, reduce=False, size_average=False)
+        loss = F.nll_loss(log_p, target, weight=weight, ignore_index=250,
+                          reduce=False, size_average=False)
         topk_loss, _ = loss.topk(K)
         reduced_topk_loss = topk_loss.sum() / K
 

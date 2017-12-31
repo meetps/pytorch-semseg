@@ -78,14 +78,11 @@ def test(args):
         misc.imsave(dcrf_path, decoded_crf)
         print("Dense CRF Processed Mask Saved at: {}".format(dcrf_path))
 
-<<<<<<< HEAD
     if torch.cuda.is_available():
         model.cuda(0)
         images = Variable(img.cuda(0), volatile=True)
     else:
         images = Variable(img, volatile=True)
-=======
->>>>>>> 132ced1867eec4c9cc99e44505dae105057151e4
 
     pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
     decoded = loader.decode_segmap(pred)
