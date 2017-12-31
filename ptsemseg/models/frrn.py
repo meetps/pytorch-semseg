@@ -1,7 +1,9 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import functools
 
 from ptsemseg.models.utils import *
+from ptsemseg.loss import bootstrapped_cross_entropy2d
 
 frrn_specs_dic = {
     'A': 
@@ -44,6 +46,8 @@ class frrn(nn.Module):
         super(frrn, self).__init__()
         self.n_classes = n_classes
         self.model_type = model_type
+        self.K = 64
+        self.loss = functools.partial(bootstrapped_cross_entropy2d, K=self.K)
 
         self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
 
