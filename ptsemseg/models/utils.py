@@ -220,7 +220,7 @@ class linknetUp(nn.Module):
         self.convbnrelu1 = conv2DBatchNormRelu(in_channels, n_filters/2, k_size=1, stride=1, padding=1)
 
         # B, C/2, H, W -> B, C/2, H, W
-        self.deconvbnrelu2 = nn.deconv2DBatchNormRelu(n_filters/2, n_filters/2, k_size=3,  stride=2, padding=0,)
+        self.deconvbnrelu2 = nn.deconv2DBatchNormRelu(n_filters/2, n_filters/2, k_size=3,  stride=2, padding=0)
 
         # B, C/2, H, W -> B, C, H, W
         self.convbnrelu3 = conv2DBatchNormRelu(n_filters/2, n_filters, k_size=1, stride=1, padding=1)
@@ -327,3 +327,27 @@ class chainedResidualPooling(nn.Module):
         input = x
         x = self.chained_residual_pooling(x)
         return x + input
+
+
+class pyramid_pooling(nn.Module):
+    def __init__(self, in_channels, feature_size, pool_sizes):
+        super(pyramid_pooling, self).__init__()
+
+        self.paths = []
+        for i in range(len(pool_sizes)):
+            self.paths.append(conv2DBatchNormRelu(in_channels, feature_size, 1, 1, 0, bias=False))
+
+        self.path_module_list = nn.ModuleList(self.paths)
+        self.pool_sizes = pool_sizes
+
+    def forward(self, x):
+        output_slices = [x]
+        h, w = x.shape[2:]
+
+        for module, pool_size in zip(self.path_module_list, self.pool_sizes):
+            out = F.avg_pool2d(x, pool_size, 1, 0)
+            out = module(out)
+            out = F.upsample(y, size=(h,w), mode='bilinear')
+            output_slices.append(out)
+
+        return F.concat(output_slices, axis=1)
