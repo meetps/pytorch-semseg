@@ -9,6 +9,7 @@ import torchvision.models as models
 
 from torch.autograd import Variable
 from torch.utils import data
+from tqdm import tqdm
 
 from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
@@ -116,6 +117,7 @@ def train(args):
         running_metrics.reset()
 
         if score['Mean IoU : \t'] >= best_iou:
+            best_iou = score['Mean IoU : \t']
             state = {'epoch': epoch+1,
                      'model_state': model.state_dict(),
                      'optimizer_state' : optimizer.state_dict(),}
