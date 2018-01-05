@@ -136,7 +136,7 @@ class cityscapesLoader(data.Dataset):
             print("WARN: resizing labels yielded fewer classes")
 
         if not np.all(np.unique(lbl[lbl!=self.ignore_index]) < self.n_classes):
-            print 'after det', classes,  np.unique(lbl) 
+            print('after det', classes,  np.unique(lbl))
             raise ValueError("Segmentation map contained invalid class values")
 
         img = torch.from_numpy(img).float()

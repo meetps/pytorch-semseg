@@ -60,7 +60,7 @@ def train(args):
         optimizer = torch.optim.SGD(model.parameters(), lr=args.l_rate, momentum=0.99, weight_decay=5e-4)
 
     if hasattr(model.module, 'loss'):
-        print 'Using custom loss'
+        print('Using custom loss')
         loss_fn = model.module.loss
     else:
         loss_fn = cross_entropy2d
