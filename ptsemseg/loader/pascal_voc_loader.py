@@ -196,7 +196,6 @@ class pascalVOCLoader(data.Dataset):
 
         pre_encoded = glob.glob(pjoin(target_path, '*.png'))
         expected = np.unique(self.files['train_aug'] + self.files['val']).size
-        assert expected == 9733, 'unexpected dataset sizes'
 
         if len(pre_encoded) != expected:
             print("Pre-encoding segmentation masks...")
@@ -213,6 +212,8 @@ class pascalVOCLoader(data.Dataset):
                 lbl = self.encode_segmap(m.imread(lbl_path))
                 lbl = m.toimage(lbl, high=lbl.max(), low=lbl.min())
                 m.imsave(pjoin(target_path, fname), lbl)
+
+        assert expected == 9733, 'unexpected dataset sizes'
 
 # Leave code for debugging purposes
 # import ptsemseg.augmentations as aug
