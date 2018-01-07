@@ -43,3 +43,10 @@ class pspnet(nn.Module):
         x = self.classification(x)
         x = F.upsample(x, size=inp_shape, mode='bilinear')
         return x
+
+    def load_pretrained_model(self):
+        """
+        TODO: Convert weights from caffemodel to npy file and 
+              plug them in corresponding modules
+        """
+        raise NotImplementedError
