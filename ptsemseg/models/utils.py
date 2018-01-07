@@ -363,7 +363,7 @@ class pyramidPooling(nn.Module):
         for module, pool_size in zip(self.path_module_list, self.pool_sizes):
             out = F.avg_pool2d(x, pool_size, 1, 0)
             out = module(out)
-            out = F.upsample(y, size=(h,w), mode='bilinear')
+            out = F.upsample(out, size=(h,w), mode='bilinear')
             output_slices.append(out)
 
         return F.concat(output_slices, axis=1)
