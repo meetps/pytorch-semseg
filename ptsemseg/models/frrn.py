@@ -134,9 +134,9 @@ class frrn(nn.Module):
             # pass through decoding FRRUs
             for block in range(n_blocks):
                 key = '_'.join(map(str,['decoding_frru', n_blocks, channels, scale, block]))
-                #print "Incoming FRRU Size: ", key, y_upsampled.shape, z.shape
+                #print("Incoming FRRU Size: ", key, y_upsampled.shape, z.shape)
                 y, z = getattr(self, key)(y_upsampled, z)
-                #print "Outgoing FRRU Size: ", key, y.shape, z.shape
+                #print("Outgoing FRRU Size: ", key, y.shape, z.shape)
             prev_channels = channels
 
         # merge streams
