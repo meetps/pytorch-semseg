@@ -15,18 +15,18 @@ This repository aims at mirroring popular semantic segmentation architectures in
 
 ### Networks implemented
 
-* [PSPNet](https://arxiv.org/abs/1612.01105)
-* [Segnet](https://arxiv.org/abs/1511.00561) - With Unpooling using Maxpool indices
-* [FCN](https://arxiv.org/abs/1411.4038) - All 1( FCN8s), 2 (FCN16s) and 3 (FCN8s) stream variants
-* [U-Net](https://arxiv.org/abs/1505.04597) - With optional deconvolution and batchnorm
-* [Link-Net](https://codeac29.github.io/projects/linknet/)
+* [PSPNet](https://arxiv.org/abs/1612.01105) - With support for loading pretrained models w/o caffe dependency
 * [FRRN](https://arxiv.org/abs/1611.08323) - Model A and B
+* [FCN](https://arxiv.org/abs/1411.4038) - All 1 (FCN32s), 2 (FCN16s) and 3 (FCN8s) stream variants
+* [U-Net](https://arxiv.org/abs/1505.04597) - With optional deconvolution and batchnorm
+* [Link-Net](https://codeac29.github.io/projects/linknet/) - With multiple resnet backends
+* [Segnet](https://arxiv.org/abs/1511.00561) - With Unpooling using Maxpool indices
+
 
 #### Upcoming 
 
 * [E-Net](https://arxiv.org/abs/1606.02147)
 * [RefineNet](https://arxiv.org/abs/1611.06612)
-* [MaskRCNN](https://arxiv.org/abs/1703.06870)
 
 ### DataLoaders implemented
 
@@ -115,8 +115,3 @@ python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
   --img_path            Path of the input image
   --out_path            Path of the output segmap
 ```
-
-### Contributors 
-
-- [josephreisinger](https://github.com/josephreisinger) 
-- [ibadami](https://github.com/ibadami)
