@@ -22,7 +22,6 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * [Link-Net](https://codeac29.github.io/projects/linknet/) - With multiple resnet backends
 * [Segnet](https://arxiv.org/abs/1511.00561) - With Unpooling using Maxpool indices
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
 
 #### Upcoming 
 
