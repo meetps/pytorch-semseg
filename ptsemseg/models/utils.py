@@ -366,7 +366,7 @@ class pyramidPooling(nn.Module):
             out = F.upsample(out, size=(h,w), mode='bilinear')
             output_slices.append(out)
 
-        return F.concat(output_slices, axis=1)
+        return torch.cat(output_slices, dim=1)
 
 
 class bottleNeckPSP(nn.Module):
