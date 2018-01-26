@@ -50,8 +50,8 @@ class pspnet(nn.Module):
 
     def load_pretrained_model(self, model_path):
         """
-        Done: Load weights from caffemodel w/o caffe dependency
-        TODO: Plug them in corresponding modules
+        Load weights from caffemodel w/o caffe dependency
+        and plug them in corresponding modules
         """
         # My eyes and my heart both hurt when writing this method
 
