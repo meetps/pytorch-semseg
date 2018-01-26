@@ -65,7 +65,7 @@ class pspnet(nn.Module):
                 mean = np.array([w for w in layer.blobs[0].data]).reshape(n_channels)
                 var = np.array([w for w in layer.blobs[1].data]).reshape(n_channels)
                 scale_factor = np.array([w for w in layer.blobs[2].data]).reshape(n_channels)
-                mean, var = mean / scale_factor, var / scale_factor
+                mean, var = mean / scale_factor[0], var / scale_factor[0]
                 return [mean, var, scale_factor]
 
             elif ltype in ['ConvolutionData', 'HoleConvolutionData']:
