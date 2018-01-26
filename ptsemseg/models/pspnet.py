@@ -99,7 +99,20 @@ class pspnet(nn.Module):
                 layer_types[lname] = ltype
                 layer_params[lname] = _get_layer_params(l, ltype)
 
+        # Set affine=False for all batchnorm modules
+        def _no_affine_bn(module=None):
+            if isinstance(module, nn.BatchNorm2d):
+                module.affine = False
+
+            if len([m for m in module.children()]) > 0:
+                for child in module.children():
+                    _no_affine_bn(child)
+
+        _no_affine_bn(self)
+
         #TODO: Plug weights from dictionary into right places
+        # My eyes and my heart both hurt when writing this
+        
 
 if __name__ == '__main__':
     psp = pspnet()
