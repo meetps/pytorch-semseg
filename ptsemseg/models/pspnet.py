@@ -1,6 +1,9 @@
+import numpy as np
 import torch.nn as nn
 
+from ptsemseg import caffe_pb2
 from ptsemseg.models.utils import *
+
 
 class pspnet(nn.Module):
 
@@ -44,9 +47,61 @@ class pspnet(nn.Module):
         x = F.upsample(x, size=inp_shape, mode='bilinear')
         return x
 
-    def load_pretrained_model(self):
+    def load_pretrained_model(self, model_path):
         """
-        TODO: Convert weights from caffemodel to npy file and 
-              plug them in corresponding modules
+        Done: Load weights from caffemodel w/o caffe dependency
+        TODO: Plug them in corresponding modules
         """
-        raise NotImplementedError
+
+        # Only care about layer_types that have trainable parameters
+        ltypes = ['BNData', 'ConvolutionData', 'HoleConvolutionData'] 
+
+        def _get_layer_params(layer, ltype):
+
+            if ltype == 'BNData':
+                n_channels = layer.blobs[0].shape.dim[1]
+                mean = np.array([w for w in layer.blobs[0].data]).reshape(n_channels)
+                var = np.array([w for w in layer.blobs[1].data]).reshape(n_channels)
+                scale_factor = np.array([w for w in layer.blobs[2].data]).reshape(n_channels)
+                mean, var = mean / scale_factor, var / scale_factor
+                return [mean, var, scale_factor]
+
+            elif ltype in ['ConvolutionData', 'HoleConvolutionData']:
+                is_bias = layer.convolution_param.bias_term
+                shape = [int(d) for d in layer.blobs[0].shape.dim]
+                weights = np.array([w for w in layer.blobs[0].data]).reshape(shape)
+                bias = []
+                if is_bias:
+                    bias = np.array([w for w in layer.blobs[1].data]).reshape(shape[0])
+                return [weights, bias]
+            
+            elif ltype == 'InnerProduct':
+                raise Exception("Fully connected layers {}, not supported".format(ltype))
+
+            else:
+                raise Exception("Unkown layer type {}".format(ltype))
+
+
+        net = caffe_pb2.NetParameter()
+        with open(model_path, 'rb') as model_file:
+            net.MergeFromString(model_file.read())
+
+        # dict formatted as ->  key:<layer_name> :: value:<layer_type>
+        layer_types = {}
+        # dict formatted as ->  key:<layer_name> :: value:[<list_of_params>]
+        layer_params = {}
+
+        for l in net.layer:
+            lname = l.name
+            ltype = l.type
+            if ltype in ltypes:
+                print("Processing layer {}".format(lname))
+                layer_types[lname] = ltype
+                layer_params[lname] = _get_layer_params(l, ltype)
+
+        #TODO: Plug weights from dictionary into right places
+
+if __name__ == '__main__':
+    psp = pspnet()
+    psp.load_pretrained_model(model_path='/home/meetshah1995/models/pspnet101_cityscapes.caffemodel')
+    import pdb;pdb.set_trace()
