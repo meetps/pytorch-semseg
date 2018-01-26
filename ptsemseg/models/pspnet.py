@@ -62,11 +62,12 @@ class pspnet(nn.Module):
 
             if ltype == 'BNData':
                 n_channels = layer.blobs[0].shape.dim[1]
-                mean = np.array([w for w in layer.blobs[0].data]).reshape(n_channels)
-                var = np.array([w for w in layer.blobs[1].data]).reshape(n_channels)
-                scale_factor = np.array([w for w in layer.blobs[2].data]).reshape(n_channels)
-                mean, var = mean / scale_factor[0], var / scale_factor[0]
-                return [mean, var, scale_factor]
+                
+                gamma = np.array([w for w in layer.blobs[0].data]).reshape(n_channels)
+                beta = np.array([w for w in layer.blobs[1].data]).reshape(n_channels)
+                mean = np.array([w for w in layer.blobs[2].data]).reshape(n_channels)
+                var =  np.array([w for w in layer.blobs[3].data]).reshape(n_channels)
+                return [mean, var, gamma, beta]
 
             elif ltype in ['ConvolutionData', 'HoleConvolutionData']:
                 is_bias = layer.convolution_param.bias_term
@@ -110,7 +111,8 @@ class pspnet(nn.Module):
                 for child in module.children():
                     _no_affine_bn(child)
 
-        _no_affine_bn(self)
+        #_no_affine_bn(self)
+
 
         def _transfer_conv(layer_name, module):
             weights, bias = layer_params[layer_name]
@@ -128,18 +130,22 @@ class pspnet(nn.Module):
                                                                    bias.shape))
                 module.bias.data = torch.from_numpy(bias)
 
+
         def _transfer_conv_bn(conv_layer_name, mother_module):
             conv_module = mother_module[0]
             bn_module = mother_module[1]
             
             _transfer_conv(conv_layer_name, conv_module)
             
-            mean, var, _ = layer_params[conv_layer_name+'/bn']
+            mean, var, gamma, beta = layer_params[conv_layer_name+'/bn']
             print("BN: Original {} and trans weights {}".format(bn_module.running_mean.size(),
                                                                 mean.shape))
             bn_module.running_mean = torch.from_numpy(mean)
             bn_module.running_var = torch.from_numpy(var)
-            
+            bn_module.weight.data = torch.from_numpy(gamma)
+            bn_module.bias.data = torch.from_numpy(beta)
+
+
         def _transfer_residual(prefix, block):
             block_module, n_layers = block[0], block[1]
 
