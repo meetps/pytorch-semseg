@@ -189,9 +189,26 @@ class pspnet(nn.Module):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
+    import scipy.misc as m
+    from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
     psp = pspnet(n_classes=19)
-    psp.load_pretrained_model(model_path='/home/meetshah1995/models/pspnet101_cityscapes.caffemodel')
+    psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
     psp.float()
-    inp = Variable(torch.ones([1, 3, 713, 713]))
+    psp.cuda()
+    psp.eval()
+
+    dst = cl(root='/home/meet/datasets/cityscapes/')
+    img = m.imread('/home/meet/datasets/cityscapes/leftImg8bit/val/frankfurt/frankfurt_000001_032556_leftImg8bit.png')
+    img = img[:, :, ::-1]
+    img = img.astype(np.float64)
+    img -= np.array([123.68, 116.779, 103.939])
+    img = m.imresize(img, [713, 713])
+    img = img.astype(float)
+    img = img.transpose(2, 0, 1)
+    
+    inp = Variable(torch.unsqueeze(torch.from_numpy(img).cuda().float(), 0))
     out = psp(inp)
+    pred = np.squeeze(out.data.max(1)[1].cpu().numpy(), axis=0)
+    decoded = dst.decode_segmap(pred)
+    m.imsave('frankfurt_result.png', decoded)
     print("Output Shape {} \t Input Shape {}".format(out.size(), inp.size()))
