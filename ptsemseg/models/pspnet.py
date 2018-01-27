@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 
+from math import ceil
+
 from ptsemseg import caffe_pb2
 from ptsemseg.models.utils import *
 
@@ -194,71 +196,77 @@ class pspnet(nn.Module):
             _transfer_residual(k, v)
 
 
-        def tile_predict(self, img, input_size=[713, 713]):
-            """
-            Predict by takin overlapping tiles from the image.
-
-            :param img: np.ndarray with shape [C, H, W] in BGR format
+    def tile_predict(self, img, input_size=[713, 713]):
+        """
+        Predict by takin overlapping tiles from the image.
+    
+        :param img: np.ndarray with shape [C, H, W] in BGR format
             
-            Source: https://github.com/mitmul/chainer-pspnet/blob/master/pspnet.py#L408-L448
-            Adapted for PyTorch
-            """
-            setattr(self, 'input_size', input_size)
+        Source: https://github.com/mitmul/chainer-pspnet/blob/master/pspnet.py#L408-L448
+        Adapted for PyTorch
+        # TODO: Remove artifacts in last window.
+        """
+        
+        setattr(self, 'input_size', input_size)
 
-            def _pad_img(img):
-                if img.shape[1] < self.input_size[0]:
-                    pad_h = self.input_size[0] - img.shape[1]
-                    img = np.pad(img, ((0, 0), (0, pad_h), (0, 0)), 'constant')
-                else:
-                    pad_h = 0
-                if img.shape[2] < self.input_size[1]:
-                    pad_w = self.input_size[1] - img.shape[2]
-                    img = np.pad(img, ((0, 0), (0, 0), (0, pad_w)), 'constant')
-                else:
-                    pad_w = 0
-                return img, pad_h, pad_w
-
-
-            ori_rows, ori_cols = img.shape[1:]
-            long_size = max(ori_rows, ori_cols)
-            
-            if long_size > max(self.input_size):
-                count = np.zeros((ori_rows, ori_cols))
-                pred = np.zeros((1, self.n_class, ori_rows, ori_cols))
-                stride_rate = 2 / 3.
-                stride = (ceil(self.input_size[0] * stride_rate),
-                          ceil(self.input_size[1] * stride_rate))
-                hh = ceil((ori_rows - self.input_size[0]) / stride[0]) + 1
-                ww = ceil((ori_cols - self.input_size[1]) / stride[1]) + 1
-                for yy in range(hh):
-                    for xx in range(ww):
-                        sy, sx = yy * stride[0], xx * stride[1]
-                        ey, ex = sy + self.input_size[0], sx + self.input_size[1]
-                        img_sub = img[:, sy:ey, sx:ex]
-                        img_sub, pad_h, pad_w = _pad_img(img_sub)
-                        
-                        inp = Variable(torch.unsqueeze(torch.from_numpy(img_sub), 0).cuda(), volatile=True)
-                        psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
-                        psub2 = F.softmax(self.forward(inp[:, :, :, ::-1]), dim=1).data.cpu().numpy()
-
-                        psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
-
-                        if sy + self.input_size[0] > ori_rows:
-                            psub = psub[:, :, :-pad_h, :]
-                        if sx + self.input_size[1] > ori_cols:
-                            psub = psub[:, :, :, :-pad_w]
-                        pred[:, :, sy:ey, sx:ex] = psub
-                        count[sy:ey, sx:ex] += 1
-                score = (pred / count[None, None, ...]).astype(np.float32)
+        def _pad_img(img):
+            if img.shape[1] < self.input_size[0]:
+                pad_h = self.input_size[0] - img.shape[1]
+                img = np.pad(img, ((0, 0), (0, pad_h), (0, 0)), 'constant')
             else:
-                img, pad_h, pad_w = _pad_img(img)
-                inp = Variable(torch.unsqueeze(torch.from_numpy(img), 0).cuda(), volatile=True)
-                pred1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
-                pred2 = F.softmax(self.forward(inp[:, :, :, ::-1]), dim=1).data.cpu().numpy()
-                pred = (pred1 + pred2[:, :, :, ::-1]) / 2.0
-                score = pred[:, :, :self.input_size[0] - pad_h, :self.input_size[1] - pad_w]
-            score = F.resize_images(score, (ori_rows, ori_cols))[0].data
-            return score / score.sum(axis=0)
+                pad_h = 0
+            if img.shape[2] < self.input_size[1]:
+                pad_w = self.input_size[1] - img.shape[2]
+                img = np.pad(img, ((0, 0), (0, 0), (0, pad_w)), 'constant')
+            else:
+                pad_w = 0
+            return img, pad_h, pad_w
+
+
+        ori_rows, ori_cols = img.shape[1:]
+        long_size = max(ori_rows, ori_cols)
+            
+        if long_size > max(self.input_size):
+            count = np.zeros((ori_rows, ori_cols))
+            pred = np.zeros((1, self.n_classes, ori_rows, ori_cols))
+            stride_rate = 2 / 3.
+            stride = (int(ceil(self.input_size[0] * stride_rate)),
+                      int(ceil(self.input_size[1] * stride_rate)))
+            hh = int(ceil((ori_rows - self.input_size[0]) / stride[0])) + 1
+            ww = int(ceil((ori_cols - self.input_size[1]) / stride[1])) + 1
+            for yy in range(hh):
+                for xx in range(ww):
+                    sy, sx = yy * stride[0], xx * stride[1]
+                    ey, ex = sy + self.input_size[0], sx + self.input_size[1]
+                    img_sub = img[:, sy:ey, sx:ex]
+                    img_sub, pad_h, pad_w = _pad_img(img_sub)
+                    img_sub_flp = np.copy(img_sub[:, :, ::-1])
+
+                    inp = Variable(torch.unsqueeze(torch.from_numpy(img_sub).float(), 0).cuda(), volatile=True)
+                    flp = Variable(torch.unsqueeze(torch.from_numpy(img_sub_flp).float(), 0).cuda(), volatile=True)
+                    psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
+                    psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
+
+                    psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
+
+                    if sy + self.input_size[0] > ori_rows:
+                        psub = psub[:, :, :-pad_h, :]
+                    if sx + self.input_size[1] > ori_cols:
+                        psub = psub[:, :, :, :-pad_w]
+                    pred[:, :, sy:ey, sx:ex] = psub
+                    count[sy:ey, sx:ex] += 1
+            score = (pred / count[None, None, ...]).astype(np.float32)
+        else:
+            img, pad_h, pad_w = _pad_img(img)
+            inp = Variable(torch.unsqueeze(torch.from_numpy(img), 0).cuda(), volatile=True)
+            pred1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
+            pred2 = F.softmax(self.forward(inp[:, :, :, ::-1]), dim=1).data.cpu().numpy()
+            pred = (pred1 + pred2[:, :, :, ::-1]) / 2.0
+            score = pred[:, :, :self.input_size[0] - pad_h, :self.input_size[1] - pad_w]
+        
+        tscore = F.upsample(torch.from_numpy(score), size=(ori_rows, ori_cols), mode='bilinear')
+        score = tscore[0].data.numpy()
+        return score / score.sum(axis=0)
 
 
 
@@ -275,18 +283,27 @@ if __name__ == '__main__':
 
     dst = cl(root='/home/meet/datasets/cityscapes/')
     img = m.imread('/home/meet/datasets/cityscapes/leftImg8bit/val/frankfurt/frankfurt_000001_032556_leftImg8bit.png')
+    orig_size = img.shape[:-1]
     img = img[:, :, ::-1]
     img = img.astype(np.float64)
     img -= np.array([123.68, 116.779, 103.939])
-    img = m.imresize(img, [713, 713])
+    #img = m.imresize(img, [713, 713])
     img = img.astype(float)
     img = img.transpose(2, 0, 1)
-    
-    inp = Variable(torch.unsqueeze(torch.from_numpy(img).cuda().float(), 0))
-    out1 = F.softmax(psp(inp), dim=1)
-    out2 = F.softmax(psp(inp[:, :, :, ::-1]), dim=1)
-    out = (out2 + out1) / 2.0
-    pred = np.squeeze(out.data.max(1)[1].cpu().numpy(), axis=0)
+    flp = np.copy(img[:, :, ::-1]) 
+
+    #inp_l = Variable(torch.unsqueeze(torch.from_numpy(img).cuda().float(), 0))
+    #inp_r = Variable(torch.unsqueeze(torch.from_numpy(flp).cuda().float(), 0))
+    #out1 = F.softmax(psp(inp_l), dim=1).data.cpu().numpy()
+    #out2 = F.softmax(psp(inp_r), dim=1).data.cpu().numpy()
+    #out = (out1 + out2[:,:,:,::-1]) / 2.0
+    #pred = np.squeeze(np.argmax(out, axis=1), axis=0)
+    #decoded = dst.decode_segmap(pred)
+    #m.imsave('frankfurt_result.png', m.imresize(decoded, orig_size, interp='nearest'))
+
+    out = psp.tile_predict(img)
+    pred = np.argmax(out, axis=0)
     decoded = dst.decode_segmap(pred)
-    m.imsave('frankfurt_result.png', decoded)
-    print("Output Shape {} \t Input Shape {}".format(out.size(), inp.size()))
+    m.imsave('frankfurt_tiled.png', decoded)
+
+    print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
