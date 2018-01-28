@@ -149,15 +149,17 @@ class pspnet(nn.Module):
             w_shape = np.array(module.weight.size())
             
             np.testing.assert_array_equal(weights.shape, w_shape)
-            print("CONV: Original {} and trans weights {}".format(w_shape,
+            print("CONV {}: Original {} and trans weights {}".format(layer_name,
+                                                                  w_shape,
                                                                   weights.shape))
             module.weight.data = torch.from_numpy(weights)
 
             if len(bias) != 0:
                 b_shape = np.array(module.bias.size())
                 np.testing.assert_array_equal(bias.shape, b_shape)
-                print("CONV: Original {} and trans bias {}".format(b_shape,
-                                                                   bias.shape))
+                print("CONV {}: Original {} and trans bias {}".format(layer_name,
+                                                                      b_shape,
+                                                                      bias.shape))
                 module.bias.data = torch.from_numpy(bias)
 
 
@@ -168,8 +170,9 @@ class pspnet(nn.Module):
             _transfer_conv(conv_layer_name, conv_module)
             
             mean, var, gamma, beta = layer_params[conv_layer_name+'/bn']
-            print("BN: Original {} and trans weights {}".format(bn_module.running_mean.size(),
-                                                                mean.shape))
+            print("BN {}: Original {} and trans weights {}".format(conv_layer_name,
+                                                                   bn_module.running_mean.size(),
+                                                                   mean.shape))
             bn_module.running_mean = torch.from_numpy(mean)
             bn_module.running_var = torch.from_numpy(var)
             bn_module.weight.data = torch.from_numpy(gamma)
@@ -224,76 +227,49 @@ class pspnet(nn.Module):
             _transfer_residual(k, v)
 
 
-    def tile_predict(self, img, input_size=[713, 713]):
+    def tile_predict(self, img, side=713, n_classes=19):
         """
         Predict by takin overlapping tiles from the image.
-    
+
+        Strides are adaptively computed from the img shape
+        and input size
+
         :param img: np.ndarray with shape [C, H, W] in BGR format
-            
-        Source: https://github.com/mitmul/chainer-pspnet/blob/master/pspnet.py#L408-L448
-        Adapted for PyTorch
-        # TODO: Remove artifacts in last window.
+        :param side: int with side length of model input
+        :param n_classes: int with number of classes in seg output.
         """
-        
-        setattr(self, 'input_size', input_size)
 
-        def _pad_img(img):
-            if img.shape[1] < self.input_size[0]:
-                pad_h = self.input_size[0] - img.shape[1]
-                img = np.pad(img, ((0, 0), (0, pad_h), (0, 0)), 'constant')
-            else:
-                pad_h = 0
-            if img.shape[2] < self.input_size[1]:
-                pad_w = self.input_size[1] - img.shape[2]
-                img = np.pad(img, ((0, 0), (0, 0), (0, pad_w)), 'constant')
-            else:
-                pad_w = 0
-            return img, pad_h, pad_w
+        h, w = img.shape[1:]
+        n = int(max(h,w) / float(side) + 1)
+        stride_x = ( h - side ) / float(n)
+        stride_y = ( w - side ) / float(n)
 
+        x_ends = [[int(i*stride_x), int(i*stride_x) + side] for i in range(n+1)]
+        y_ends = [[int(i*stride_y), int(i*stride_y) + side] for i in range(n+1)]
 
-        ori_rows, ori_cols = img.shape[1:]
-        long_size = max(ori_rows, ori_cols)
+        pred = np.zeros([1, n_classes, h, w])
+        count = np.zeros([h, w])
+
+        slice_count = 0
+        for sx, ex in x_ends:
+            for sy, ey in y_ends:
+                slice_count += 1
             
-        if long_size > max(self.input_size):
-            count = np.zeros((ori_rows, ori_cols))
-            pred = np.zeros((1, self.n_classes, ori_rows, ori_cols))
-            stride_rate = 2 / 3.
-            stride = (int(ceil(self.input_size[0] * stride_rate)),
-                      int(ceil(self.input_size[1] * stride_rate)))
-            hh = int(ceil((ori_rows - self.input_size[0]) / stride[0])) + 1
-            ww = int(ceil((ori_cols - self.input_size[1]) / stride[1])) + 1
-            for yy in range(hh):
-                for xx in range(ww):
-                    sy, sx = yy * stride[0], xx * stride[1]
-                    ey, ex = sy + self.input_size[0], sx + self.input_size[1]
-                    img_sub = img[:, sy:ey, sx:ex]
-                    img_sub, pad_h, pad_w = _pad_img(img_sub)
-                    img_sub_flp = np.copy(img_sub[:, :, ::-1])
+                img_slice = img[:, sx:ex, sy:ey]
+                img_slice_flip = np.copy(img_slice[:,:,::-1])
+            
+                inp = Variable(torch.unsqueeze(torch.from_numpy(img_slice).float(), 0).cuda(), volatile=True)
+                flp = Variable(torch.unsqueeze(torch.from_numpy(img_slice_flip).float(), 0).cuda(), volatile=True)
+                psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
+                psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
+                psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
 
-                    inp = Variable(torch.unsqueeze(torch.from_numpy(img_sub).float(), 0).cuda(), volatile=True)
-                    flp = Variable(torch.unsqueeze(torch.from_numpy(img_sub_flp).float(), 0).cuda(), volatile=True)
-                    psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
-                    psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
+                pred[:, :, sx:ex, sy:ey] = psub
+                count[sx:ex, sy:ey] += 1.0
 
-                    psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
-
-                    if sy + self.input_size[0] > ori_rows:
-                        psub = psub[:, :, :-pad_h, :]
-                    if sx + self.input_size[1] > ori_cols:
-                        psub = psub[:, :, :, :-pad_w]
-                    pred[:, :, sy:ey, sx:ex] = psub
-                    count[sy:ey, sx:ex] += 1
-            score = (pred / count[None, None, ...]+0.0001).astype(np.float32)
-        else:
-            img, pad_h, pad_w = _pad_img(img)
-            inp = Variable(torch.unsqueeze(torch.from_numpy(img), 0).cuda(), volatile=True)
-            pred1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
-            pred2 = F.softmax(self.forward(inp[:, :, :, ::-1]), dim=1).data.cpu().numpy()
-            pred = (pred1 + pred2[:, :, :, ::-1]) / 2.0
-            score = pred[:, :, :self.input_size[0] - pad_h, :self.input_size[1] - pad_w]
-        
-        tscore = F.upsample(torch.from_numpy(score), size=(ori_rows, ori_cols), mode='bilinear')
-        score = tscore[0].data.numpy()
+                print slice_count, img.shape, sx, sy, ex, ey, img_slice.shape
+    
+        score = (pred / count[None, None, ...]).astype(np.float32)[0]
         return score / score.sum(axis=0)
 
 
@@ -305,7 +281,11 @@ if __name__ == '__main__':
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
     psp = pspnet(n_classes=19)
-    psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    #psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    #torch.save(psp.state_dict(), "psp.pth")
+    psp.load_state_dict(torch.load('psp.pth'))
+
+
     psp.float()
     psp.cuda(cd)
     psp.eval()
@@ -320,27 +300,9 @@ if __name__ == '__main__':
     img = np.copy(img[::-1, :, :])
     flp = np.copy(img[:, :, ::-1]) 
 
-    #inp_l = Variable(torch.unsqueeze(torch.from_numpy(img).cuda(cd).float(), 0))
-    #inp_r = Variable(torch.unsqueeze(torch.from_numpy(flp).cuda(cd).float(), 0))
-    #out1 = F.softmax(psp(inp_l), dim=1).data.cpu().numpy()
-    #out2 = F.softmax(psp(inp_r), dim=1).data.cpu().numpy()
-    
-    #decoded_l = dst.decode_segmap(np.squeeze(np.argmax(out1, axis=1), axis=0))
-    #decoded_r = dst.decode_segmap(np.squeeze(np.argmax(out2, axis=1), axis=0))
-   
-    #m.imsave('frankfurt_result_l.png', decoded_l)
-    #m.imsave('frankfurt_result_r.png', decoded_r)
-
-    #out = (out1 + out2[:,:,:,::-1]) / 2.0
-    #pred = np.squeeze(np.argmax(out, axis=1), axis=0)
-    #decoded = dst.decode_segmap(pred)
-    #m.imsave('frankfurt_result_consensus.png', decoded)
-
-    
-    #inp_full = Variable(torch.unsqueeze(torch.from_numpy(img).cuda(cd).float(), 0))
     out = psp.tile_predict(img)
     pred = np.argmax(out, axis=0)
     decoded = dst.decode_segmap(pred)
-    m.imsave('frankfurt_tiled.png', decoded)
+    m.imsave('frankfurt_tiled.png', decoded) 
 
     print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
