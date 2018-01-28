@@ -9,6 +9,19 @@ from ptsemseg.models.utils import *
 
 
 class pspnet(nn.Module):
+    
+    """
+    Pyramid Scene Parsing Network
+    URL: https://arxiv.org/abs/1612.01105
+
+    References:
+    1) Original Author's code: https://github.com/hszhao/PSPNet
+    2) Chainer implementation by @mitmul: https://github.com/mitmul/chainer-pspnet
+
+    Visualization:
+    http://dgschwend.github.io/netscope/#/gist/6bfb59e6a3cfcb4e2bb8d47f827c2928
+
+    """
 
     def __init__(self, n_classes=21, block_config=[3, 4, 23, 3]):
         super(pspnet, self).__init__()
@@ -31,23 +44,39 @@ class pspnet(nn.Module):
         # Dilated Residual Blocks
         self.res_block4 = residualBlockPSP(self.block_config[2], 512, 256, 1024, 1, 2)
         self.res_block5 = residualBlockPSP(self.block_config[3], 1024, 512, 2048, 1, 4)
+        
+        # Pyramid Pooling Module
         self.pyramid_pooling = pyramidPooling(2048, [6, 3, 2, 1])
+       
+        # Final conv layers
         self.cbr_final = conv2DBatchNormRelu(4096, 512, 3, 1, 1, False)
+        self.dropout = nn.Dropout2d(p=0.1, inplace=True)
         self.classification = nn.Conv2d(512, n_classes, 1, 1, 0)
 
     def forward(self, x):
         inp_shape = x.shape[2:]
 
         # H, W -> H/2, W/2
-        x = self.convbnrelu1_3(self.convbnrelu1_2(self.convbnrelu1_1(x)))
+        x = self.convbnrelu1_1(x)
+        x = self.convbnrelu1_2(x)
+        x = self.convbnrelu1_3(x)
+
         # H/2, W/2 -> H/4, W/4
         x = F.max_pool2d(x, 3, 2, 1)
+
         # H/4, W/4 -> H/8, W/8
-        x = self.res_block5(self.res_block4(self.res_block3(self.res_block2(x))))
+        x = self.res_block2(x)
+        x = self.res_block3(x)
+        x = self.res_block4(x)
+        x = self.res_block5(x)
+
         x = self.pyramid_pooling(x)
-        x = F.dropout2d(self.cbr_final(x), p=0.1, inplace=True)
+
+        x = self.cbr_final(x)
+        x = self.dropout(x)
+
         x = self.classification(x)
-        x = F.upsample(x, size=inp_shape, mode='bilinear')
+        x = F.upsample(x, size=inp_shape, mode='bilinear') 
         return x
 
     def load_pretrained_model(self, model_path):
@@ -62,22 +91,21 @@ class pspnet(nn.Module):
 
         def _get_layer_params(layer, ltype):
 
-            if ltype == 'BNData':
+            if ltype == 'BNData': 
                 n_channels = layer.blobs[0].shape.dim[1]
-                
-                gamma = np.array([w for w in layer.blobs[0].data]).reshape(n_channels)
-                beta = np.array([w for w in layer.blobs[1].data]).reshape(n_channels)
-                mean = np.array([w for w in layer.blobs[2].data]).reshape(n_channels)
-                var =  np.array([w for w in layer.blobs[3].data]).reshape(n_channels)
+                gamma = np.array(layer.blobs[0].data).reshape(n_channels)
+                beta = np.array(layer.blobs[1].data).reshape(n_channels)
+                mean = np.array(layer.blobs[2].data).reshape(n_channels)
+                var =  np.array(layer.blobs[3].data).reshape(n_channels)
                 return [mean, var, gamma, beta]
 
             elif ltype in ['ConvolutionData', 'HoleConvolutionData']:
                 is_bias = layer.convolution_param.bias_term
                 shape = [int(d) for d in layer.blobs[0].shape.dim]
-                weights = np.array([w for w in layer.blobs[0].data]).reshape(shape)
+                weights = np.array(layer.blobs[0].data).reshape(shape)
                 bias = []
                 if is_bias:
-                    bias = np.array([w for w in layer.blobs[1].data]).reshape(shape[0])
+                    bias = np.array(layer.blobs[1].data).reshape(shape[0])
                 return [weights, bias]
             
             elif ltype == 'InnerProduct':
@@ -255,7 +283,7 @@ class pspnet(nn.Module):
                         psub = psub[:, :, :, :-pad_w]
                     pred[:, :, sy:ey, sx:ex] = psub
                     count[sy:ey, sx:ex] += 1
-            score = (pred / count[None, None, ...]).astype(np.float32)
+            score = (pred / count[None, None, ...]+0.0001).astype(np.float32)
         else:
             img, pad_h, pad_w = _pad_img(img)
             inp = Variable(torch.unsqueeze(torch.from_numpy(img), 0).cuda(), volatile=True)
@@ -270,37 +298,46 @@ class pspnet(nn.Module):
 
 
 
-
+# For Testing Purposes only
 if __name__ == '__main__':
+    cd = 0
     from torch.autograd import Variable
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
     psp = pspnet(n_classes=19)
     psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
     psp.float()
-    psp.cuda()
+    psp.cuda(cd)
     psp.eval()
 
     dst = cl(root='/home/meet/datasets/cityscapes/')
-    img = m.imread('/home/meet/datasets/cityscapes/leftImg8bit/val/frankfurt/frankfurt_000001_032556_leftImg8bit.png')
+    img = m.imread('/home/meet/seg/leftImg8bit/demoVideo/stuttgart_00/stuttgart_00_000000_000010_leftImg8bit.png')
+    m.imsave('cropped.png', img)
     orig_size = img.shape[:-1]
-    img = img[:, :, ::-1]
-    img = img.astype(np.float64)
-    img -= np.array([123.68, 116.779, 103.939])
-    #img = m.imresize(img, [713, 713])
-    img = img.astype(float)
     img = img.transpose(2, 0, 1)
+    img = img.astype(np.float64)
+    img -= np.array([123.68, 116.779, 103.939])[:, None, None]
+    img = np.copy(img[::-1, :, :])
     flp = np.copy(img[:, :, ::-1]) 
 
-    #inp_l = Variable(torch.unsqueeze(torch.from_numpy(img).cuda().float(), 0))
-    #inp_r = Variable(torch.unsqueeze(torch.from_numpy(flp).cuda().float(), 0))
+    #inp_l = Variable(torch.unsqueeze(torch.from_numpy(img).cuda(cd).float(), 0))
+    #inp_r = Variable(torch.unsqueeze(torch.from_numpy(flp).cuda(cd).float(), 0))
     #out1 = F.softmax(psp(inp_l), dim=1).data.cpu().numpy()
     #out2 = F.softmax(psp(inp_r), dim=1).data.cpu().numpy()
+    
+    #decoded_l = dst.decode_segmap(np.squeeze(np.argmax(out1, axis=1), axis=0))
+    #decoded_r = dst.decode_segmap(np.squeeze(np.argmax(out2, axis=1), axis=0))
+   
+    #m.imsave('frankfurt_result_l.png', decoded_l)
+    #m.imsave('frankfurt_result_r.png', decoded_r)
+
     #out = (out1 + out2[:,:,:,::-1]) / 2.0
     #pred = np.squeeze(np.argmax(out, axis=1), axis=0)
     #decoded = dst.decode_segmap(pred)
-    #m.imsave('frankfurt_result.png', m.imresize(decoded, orig_size, interp='nearest'))
+    #m.imsave('frankfurt_result_consensus.png', decoded)
 
+    
+    #inp_full = Variable(torch.unsqueeze(torch.from_numpy(img).cuda(cd).float(), 0))
     out = psp.tile_predict(img)
     pred = np.argmax(out, axis=0)
     decoded = dst.decode_segmap(pred)
