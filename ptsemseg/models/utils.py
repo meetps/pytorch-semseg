@@ -384,8 +384,8 @@ class bottleNeckPSP(nn.Module):
             self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 
                                             stride=stride, padding=1, 
                                             bias=False, dilation=1)
-        self.cb3 = conv2DBatchNorm(mid_channels, out_channels, 1, 1, 0)
-        self.cb4 = conv2DBatchNorm(in_channels, out_channels, 1, stride, 0)
+        self.cb3 = conv2DBatchNorm(mid_channels, out_channels, 1, 1, 0, bias=False)
+        self.cb4 = conv2DBatchNorm(in_channels, out_channels, 1, stride, 0, bias=False)
 
     def forward(self, x):
         conv = self.cb3(self.cbr2(self.cbr1(x)))
@@ -407,7 +407,7 @@ class bottleNeckIdentifyPSP(nn.Module):
             self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 
                                             stride=1, padding=1, 
                                             bias=False, dilation=1)
-        self.cb3 = conv2DBatchNorm(mid_channels, in_channels, 1, 1, 0)
+        self.cb3 = conv2DBatchNorm(mid_channels, in_channels, 1, 1, 0, bias=False)
         
     def forward(self, x):
         residual = x

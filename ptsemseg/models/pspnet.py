@@ -255,8 +255,15 @@ class pspnet(nn.Module):
                 img_slice = img[:, sx:ex, sy:ey]
                 img_slice_flip = np.copy(img_slice[:,:,::-1])
             
-                inp = Variable(torch.unsqueeze(torch.from_numpy(img_slice).float(), 0).cuda(), volatile=True)
-                flp = Variable(torch.unsqueeze(torch.from_numpy(img_slice_flip).float(), 0).cuda(), volatile=True)
+                is_model_on_cuda = next(self.parameters()).is_cuda
+
+                inp = Variable(torch.unsqueeze(torch.from_numpy(img_slice).float(), 0), volatile=True)
+                flp = Variable(torch.unsqueeze(torch.from_numpy(img_slice_flip).float(), 0), volatile=True)
+                
+                if is_model_on_cuda:
+                    inp = inp.cuda()
+                    flp = flp.cuda()
+
                 psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
                 psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
                 psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
@@ -276,7 +283,10 @@ if __name__ == '__main__':
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
     psp = pspnet(n_classes=19)
-    psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    
+    # Just need to do this one time
+    #psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    
     torch.save(psp.state_dict(), "psp.pth")
     psp.load_state_dict(torch.load('psp.pth'))
 
@@ -302,7 +312,6 @@ if __name__ == '__main__':
     #    _ = psp(warmup[:,:,300:300+713,300:300+713])
 
     out = psp.tile_predict(img)
-    
     pred = np.argmax(out, axis=0)
     decoded = dst.decode_segmap(pred)
     m.imsave('frankfurt_tiled.png', decoded) 
