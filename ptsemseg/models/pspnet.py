@@ -92,20 +92,18 @@ class pspnet(nn.Module):
         def _get_layer_params(layer, ltype):
 
             if ltype == 'BNData': 
-                n_channels = layer.blobs[0].shape.dim[1]
-                gamma = np.array(layer.blobs[0].data).reshape(n_channels)
-                beta = np.array(layer.blobs[1].data).reshape(n_channels)
-                mean = np.array(layer.blobs[2].data).reshape(n_channels)
-                var =  np.array(layer.blobs[3].data).reshape(n_channels)
+                gamma = np.array(layer.blobs[0].data)
+                beta = np.array(layer.blobs[1].data)
+                mean = np.array(layer.blobs[2].data)
+                var =  np.array(layer.blobs[3].data)
                 return [mean, var, gamma, beta]
 
             elif ltype in ['ConvolutionData', 'HoleConvolutionData']:
                 is_bias = layer.convolution_param.bias_term
-                shape = [int(d) for d in layer.blobs[0].shape.dim]
-                weights = np.array(layer.blobs[0].data).reshape(shape)
+                weights = np.array(layer.blobs[0].data)
                 bias = []
                 if is_bias:
-                    bias = np.array(layer.blobs[1].data).reshape(shape[0])
+                    bias = np.array(layer.blobs[1].data)
                 return [weights, bias]
             
             elif ltype == 'InnerProduct':
@@ -148,19 +146,18 @@ class pspnet(nn.Module):
             weights, bias = layer_params[layer_name]
             w_shape = np.array(module.weight.size())
             
-            np.testing.assert_array_equal(weights.shape, w_shape)
             print("CONV {}: Original {} and trans weights {}".format(layer_name,
                                                                   w_shape,
                                                                   weights.shape))
-            module.weight.data = torch.from_numpy(weights)
+            
+            module.weight.data.copy_(torch.from_numpy(weights).view_as(module.weight))
 
             if len(bias) != 0:
                 b_shape = np.array(module.bias.size())
-                np.testing.assert_array_equal(bias.shape, b_shape)
                 print("CONV {}: Original {} and trans bias {}".format(layer_name,
                                                                       b_shape,
                                                                       bias.shape))
-                module.bias.data = torch.from_numpy(bias)
+                module.bias.data.copy_(torch.from_numpy(bias))
 
 
         def _transfer_conv_bn(conv_layer_name, mother_module):
@@ -173,10 +170,10 @@ class pspnet(nn.Module):
             print("BN {}: Original {} and trans weights {}".format(conv_layer_name,
                                                                    bn_module.running_mean.size(),
                                                                    mean.shape))
-            bn_module.running_mean = torch.from_numpy(mean)
-            bn_module.running_var = torch.from_numpy(var)
-            bn_module.weight.data = torch.from_numpy(gamma)
-            bn_module.bias.data = torch.from_numpy(beta)
+            bn_module.running_mean.copy_(torch.from_numpy(mean).view_as(bn_module.running_mean))
+            bn_module.running_var.copy_(torch.from_numpy(var).view_as(bn_module.running_var))
+            bn_module.weight.data.copy_(torch.from_numpy(gamma).view_as(bn_module.weight))
+            bn_module.bias.data.copy_(torch.from_numpy(beta).view_as(bn_module.bias))
 
 
         def _transfer_residual(prefix, block):
@@ -263,12 +260,10 @@ class pspnet(nn.Module):
                 psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
                 psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
                 psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
-
+    
                 pred[:, :, sx:ex, sy:ey] = psub
                 count[sx:ex, sy:ey] += 1.0
-
-                print slice_count, img.shape, sx, sy, ex, ey, img_slice.shape
-    
+ 
         score = (pred / count[None, None, ...]).astype(np.float32)[0]
         return score / score.sum(axis=0)
 
@@ -281,8 +276,8 @@ if __name__ == '__main__':
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
     psp = pspnet(n_classes=19)
-    #psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
-    #torch.save(psp.state_dict(), "psp.pth")
+    psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    torch.save(psp.state_dict(), "psp.pth")
     psp.load_state_dict(torch.load('psp.pth'))
 
 
@@ -299,8 +294,15 @@ if __name__ == '__main__':
     img -= np.array([123.68, 116.779, 103.939])[:, None, None]
     img = np.copy(img[::-1, :, :])
     flp = np.copy(img[:, :, ::-1]) 
+    
+
+    # Warmup model
+    #warmup = Variable(torch.unsqueeze(torch.from_numpy(flp).float(), 0).cuda(cd))
+    #for i in range(5):
+    #    _ = psp(warmup[:,:,300:300+713,300:300+713])
 
     out = psp.tile_predict(img)
+    
     pred = np.argmax(out, axis=0)
     decoded = dst.decode_segmap(pred)
     m.imsave('frankfurt_tiled.png', decoded) 
