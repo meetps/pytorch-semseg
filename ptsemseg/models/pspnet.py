@@ -3,10 +3,33 @@ import numpy as np
 import torch.nn as nn
 
 from math import ceil
+from torch.autograd import Variable
 
 from ptsemseg import caffe_pb2
 from ptsemseg.models.utils import *
 
+pspnet_specs = {
+    'pascalvoc': 
+    {
+         'n_classes': 21,
+         'input_size': (473, 473),
+         'block_config': [3, 4, 23, 3],
+    },
+
+    'cityscapes': 
+    {
+         'n_classes': 19,
+         'input_size': (713, 713),
+         'block_config': [3, 4, 23, 3],
+    },
+
+    'ade20k': 
+    {
+         'n_classes': 150,
+         'input_size': (473, 473),
+         'block_config': [3, 4, 6, 3],
+    },
+}
 
 class pspnet(nn.Module):
     
@@ -23,12 +46,18 @@ class pspnet(nn.Module):
 
     """
 
-    def __init__(self, n_classes=21, block_config=[3, 4, 23, 3]):
+    def __init__(self, 
+                 n_classes=21, 
+                 block_config=[3, 4, 23, 3], 
+                 input_size=(473,473), 
+                 version=None):
+
         super(pspnet, self).__init__()
         
-        self.block_config = block_config
-        self.n_classes = n_classes
-
+        self.block_config = pspnet_specs[version]['block_config'] if version is not None else block_config
+        self.n_classes = pspnet_specs[version]['n_classes'] if version is not None else n_classes
+        self.input_size = pspnet_specs[version]['input_size'] if version is not None else input_size
+        
         # Encoder
         self.convbnrelu1_1 = conv2DBatchNormRelu(in_channels=3, k_size=3, n_filters=64,
                                                  padding=1, stride=2, bias=False)
@@ -51,7 +80,7 @@ class pspnet(nn.Module):
         # Final conv layers
         self.cbr_final = conv2DBatchNormRelu(4096, 512, 3, 1, 1, False)
         self.dropout = nn.Dropout2d(p=0.1, inplace=True)
-        self.classification = nn.Conv2d(512, n_classes, 1, 1, 0)
+        self.classification = nn.Conv2d(512, self.n_classes, 1, 1, 0)
 
     def forward(self, x):
         inp_shape = x.shape[2:]
@@ -224,7 +253,7 @@ class pspnet(nn.Module):
             _transfer_residual(k, v)
 
 
-    def tile_predict(self, img, side=713, n_classes=19):
+    def tile_predict(self, img):
         """
         Predict by takin overlapping tiles from the image.
 
@@ -236,6 +265,8 @@ class pspnet(nn.Module):
         :param n_classes: int with number of classes in seg output.
         """
 
+        side = self.input_size[0]
+        n_classes = self.n_classes
         h, w = img.shape[1:]
         n = int(max(h,w) / float(side) + 1)
         stride_x = ( h - side ) / float(n)
@@ -280,16 +311,16 @@ class pspnet(nn.Module):
 if __name__ == '__main__':
     cd = 0
     from torch.autograd import Variable
+    import matplotlib.pyplot as plt
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
-    psp = pspnet(n_classes=19)
+    psp = pspnet(version='ade20k')
     
     # Just need to do this one time
     #psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
+    psp.load_pretrained_model(model_path='/home/meet/models/pspnet50_ADE20K.caffemodel')
     
-    torch.save(psp.state_dict(), "psp.pth")
-    psp.load_state_dict(torch.load('psp.pth'))
-
+    # psp.load_state_dict(torch.load('psp.pth'))
 
     psp.float()
     psp.cuda(cd)
@@ -303,17 +334,13 @@ if __name__ == '__main__':
     img = img.astype(np.float64)
     img -= np.array([123.68, 116.779, 103.939])[:, None, None]
     img = np.copy(img[::-1, :, :])
-    flp = np.copy(img[:, :, ::-1]) 
-    
-
-    # Warmup model
-    #warmup = Variable(torch.unsqueeze(torch.from_numpy(flp).float(), 0).cuda(cd))
-    #for i in range(5):
-    #    _ = psp(warmup[:,:,300:300+713,300:300+713])
+    flp = np.copy(img[:, :, ::-1])
 
     out = psp.tile_predict(img)
     pred = np.argmax(out, axis=0)
-    decoded = dst.decode_segmap(pred)
-    m.imsave('frankfurt_tiled.png', decoded) 
+    #decoded = dst.decode_segmap(pred)
+    # m.imsave('ade20k_sttutgart_tiled.png', decoded)
+    m.imsave('ade20k_sttutgart_tiled.png', pred) 
 
+    torch.save(psp.state_dict(), "psp_ade20k.pth")
     print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
