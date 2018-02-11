@@ -38,12 +38,9 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * [ADE20K](http://groups.csail.mit.edu/vision/datasets/ADE20K/)
 * [MIT Scene Parsing Benchmark](http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeData2016.zip)
 * [Cityscapes](https://www.cityscapes-dataset.com/)
-
-#### Upcoming
-
 * [NYUDv2](http://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html)
 * [Sun-RGBD](http://rgbd.cs.princeton.edu/)
-* [MS COCO](http://mscoco.org/)
+
 
 ### Requirements
 
