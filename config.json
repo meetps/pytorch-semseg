@@ -16,12 +16,22 @@
   
   "ade20k":
   {
-    "data_path": "/Users/meet/data/ADE20K_2016_07_26/"
+    "data_path": "/home/meet/datasets/ADE20K/"
   },
   
   "mit_sceneparsing_benchmark":
   {
     "data_path": "/home/ubuntu/DATA/ADEChallengeData2016/"
+  },
+
+  "nyuv2":
+  {
+    "data_path": "/home/meet/datasets/NYUv2/"
+  },
+
+  "sunrgbd":
+  {
+    "data_path": "/home/meet/datasets/SUNRBGD/"
   },
   
   "cityscapes":
