@@ -1,6 +1,9 @@
 # pytorch-semseg
 
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/meetshah1995/pytorch-semseg/blob/master/LICENSE)
+[![pypi](https://img.shields.io/pypi/v/pytorch_semseg.svg)](https://pypi.python.org/pypi/pytorch-semseg/0.1.2)
+
+
 
 ## Semantic Segmentation Algorithms Implemented in PyTorch
 
