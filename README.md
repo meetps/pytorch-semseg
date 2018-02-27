@@ -115,3 +115,16 @@ python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
   --img_path            Path of the input image
   --out_path            Path of the output segmap
 ```
+
+
+**If you find this code useful in your research, please consider citing:**
+
+```
+@article{mshahsemseg,
+    Author = {Meet P Shah},
+    Title = {Semantic Segmentation Architectures Implemented in PyTorch.},
+    Journal = {https://github.com/meetsahh1995/pytorch-semseg},
+    Year = {2017}
+}
+```
+
