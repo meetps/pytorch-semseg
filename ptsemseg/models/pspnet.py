@@ -266,29 +266,31 @@ class pspnet(nn.Module):
             _transfer_residual(k, v)
 
 
-    def tile_predict(self, img):
+    def tile_predict(self, imgs, include_flip_mode=True):
         """
         Predict by takin overlapping tiles from the image.
 
-        Strides are adaptively computed from the img shape
+        Strides are adaptively computed from the imgs shape
         and input size
 
-        :param img: np.ndarray with shape [C, H, W] in BGR format
+        :param imgs: torch.Tensor with shape [N, C, H, W] in BGR format
         :param side: int with side length of model input
         :param n_classes: int with number of classes in seg output.
         """
 
-        side = self.input_size[0]
+        side_x, side_y = self.input_size
         n_classes = self.n_classes
-        h, w = img.shape[1:]
-        n = int(max(h,w) / float(side) + 1)
-        stride_x = ( h - side ) / float(n)
-        stride_y = ( w - side ) / float(n)
+        n_samples, c, h, w = imgs.shape
+        #n = int(max(h,w) / float(side) + 1)
+        n_x = int(h / float(side_x) + 1)
+        n_y = int(w / float(side_y) + 1)
+        stride_x = ( h - side_x ) / float(n_x)
+        stride_y = ( w - side_y ) / float(n_y)
 
-        x_ends = [[int(i*stride_x), int(i*stride_x) + side] for i in range(n+1)]
-        y_ends = [[int(i*stride_y), int(i*stride_y) + side] for i in range(n+1)]
+        x_ends = [[int(i*stride_x), int(i*stride_x) + side_x] for i in range(n_x+1)]
+        y_ends = [[int(i*stride_y), int(i*stride_y) + side_y] for i in range(n_y+1)]
 
-        pred = np.zeros([1, n_classes, h, w])
+        pred = np.zeros([n_samples, n_classes, h, w])
         count = np.zeros([h, w])
 
         slice_count = 0
@@ -296,33 +298,40 @@ class pspnet(nn.Module):
             for sy, ey in y_ends:
                 slice_count += 1
             
-                img_slice = img[:, sx:ex, sy:ey]
-                img_slice_flip = np.copy(img_slice[:,:,::-1])
-            
+                imgs_slice = imgs[:, :, sx:ex, sy:ey]
+                if include_flip_mode:
+                    imgs_slice_flip = torch.from_numpy(np.copy(imgs_slice.cpu().numpy()[:, :, :, ::-1])).float()
+
                 is_model_on_cuda = next(self.parameters()).is_cuda
 
-                inp = Variable(torch.unsqueeze(torch.from_numpy(img_slice).float(), 0), volatile=True)
-                flp = Variable(torch.unsqueeze(torch.from_numpy(img_slice_flip).float(), 0), volatile=True)
+                inp = Variable(imgs_slice, volatile=True)
+                if include_flip_mode:
+                    flp = Variable(imgs_slice_flip, volatile=True)
                 
                 if is_model_on_cuda:
                     inp = inp.cuda()
-                    flp = flp.cuda()
+                    if include_flip_mode:
+                        flp = flp.cuda()
 
-                psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
-                psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
-                psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
+                psub1 = F.softmax(self.forward(inp)[-1], dim=1).data.cpu().numpy()
+                if include_flip_mode:
+                    psub2 = F.softmax(self.forward(flp)[-1], dim=1).data.cpu().numpy()
+                    psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
+                else:
+                    psub = psub1
     
                 pred[:, :, sx:ex, sy:ey] = psub
                 count[sx:ex, sy:ey] += 1.0
  
-        score = (pred / count[None, None, ...]).astype(np.float32)[0]
-        return score / score.sum(axis=0)
+        score = (pred / count[None, None, ...]).astype(np.float32)
+        return score / np.expand_dims(score.sum(axis=1), axis=1)
 
 
 
 # For Testing Purposes only
 if __name__ == '__main__':
     cd = 0
+    import os
     from torch.autograd import Variable
     import matplotlib.pyplot as plt
     import scipy.misc as m
@@ -350,13 +359,14 @@ if __name__ == '__main__':
     img = img.astype(np.float64)
     img -= np.array([123.68, 116.779, 103.939])[:, None, None]
     img = np.copy(img[::-1, :, :])
-    flp = np.copy(img[:, :, ::-1])
+    img = torch.from_numpy(img).float() # convert to torch tensor
+    img = img.unsqueeze(0)
 
     out = psp.tile_predict(img)
-    pred = np.argmax(out, axis=0)
-    #decoded = dst.decode_segmap(pred)
-    # m.imsave('ade20k_sttutgart_tiled.png', decoded)
-    m.imsave('ade20k_sttutgart_tiled.png', pred) 
+    pred = np.argmax(out, axis=1).astype(np.uint8)[0]
+    decoded = dst.decode_segmap(pred)
+    m.imsave('cityscapes_sttutgart_tiled.png', decoded)
+    #m.imsave('cityscapes_sttutgart_tiled.png', pred) 
 
     checkpoints_dir_path = 'checkpoints'
     if not os.path.exists(checkpoints_dir_path):
