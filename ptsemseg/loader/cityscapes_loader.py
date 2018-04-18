@@ -31,7 +31,7 @@ class cityscapesLoader(data.Dataset):
               [220, 220,   0],
               [107, 142,  35],
               [152, 251, 152],
-              [ 0, 130, 180],
+              [  0, 130, 180],
               [220,  20,  60],
               [255,   0,   0],
               [  0,   0, 142],
@@ -43,8 +43,10 @@ class cityscapesLoader(data.Dataset):
 
     label_colours = dict(zip(range(19), colors))
 
+    mean_rgb = {'pascal': [103.939, 116.779, 123.68], 'cityscapes': [73.15835921, 82.90891754, 72.39239876]} # pascal mean for PSPNet and ICNet pre-trained model
+
     def __init__(self, root, split="train", is_transform=False, 
-                 img_size=(512, 1024), augmentations=None):
+                 img_size=(512, 1024), augmentations=None, img_norm=True, version='pascal'):
         """__init__
 
         :param root:
@@ -57,9 +59,10 @@ class cityscapesLoader(data.Dataset):
         self.split = split
         self.is_transform = is_transform
         self.augmentations = augmentations
+        self.img_norm = img_norm
         self.n_classes = 19
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        self.mean = np.array([73.15835921, 82.90891754, 72.39239876])
+        self.mean = np.array(self.mean_rgb[version])
         self.files = {}
 
         self.images_base = os.path.join(self.root, 'leftImg8bit', self.split)
@@ -116,21 +119,21 @@ class cityscapesLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        img = img[:, :, ::-1]
+        img = m.imresize(img, (self.img_size[0], self.img_size[1])) # uint8 with RGB mode
+        img = img[:, :, ::-1] # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
-        # Resize scales images from 0 to 255, thus we need
-        # to divide by 255.0
-        img = img.astype(float) / 255.0
-        # NHWC -> NCWH
+        if self.img_norm:
+            # Resize scales images from 0 to 255, thus we need
+            # to divide by 255.0
+            img = img.astype(float) / 255.0
+        # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
-        
+
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
         lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), 'nearest', mode='F')
         lbl = lbl.astype(int)
-        
 
         if not np.all(classes == np.unique(lbl)):
             print("WARN: resizing labels yielded fewer classes")
