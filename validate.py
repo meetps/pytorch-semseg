@@ -49,8 +49,27 @@ def validate(args):
         images = Variable(images.cuda(), volatile=True)
         #labels = Variable(labels.cuda(), volatile=True)
 
-        outputs = model(images)
-        pred = outputs.data.max(1)[1].cpu().numpy()
+        if model_name == 'pspnet':
+            outputs = model(images)[-1]
+            if args.include_flip_mode:
+                outputs = outputs.data.cpu().numpy()
+                flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
+                flipped_images = Variable(torch.from_numpy( flipped_images ).float().cuda(), volatile=True)
+                outputs_flipped = model( flipped_images )[-1].data.cpu().numpy()
+                outputs = (outputs + outputs_flipped[:, :, :, ::-1]) / 2.0
+        else:
+            outputs = model(images)
+            if args.include_flip_mode:
+                outputs = outputs.data.cpu().numpy()
+                flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
+                flipped_images = Variable(torch.from_numpy( flipped_images ).float().cuda(), volatile=True)
+                outputs_flipped = model( flipped_images ).data.cpu().numpy()
+                outputs = (outputs + outputs_flipped[:, :, :, ::-1]) / 2.0
+
+        if args.include_flip_mode:
+            pred = np.argmax(outputs, axis=1).astype(np.uint8)
+        else:
+            pred = outputs.data.max(1)[1].cpu().numpy().astype(np.uint8)
         #gt = labels.data.cpu().numpy()
         gt = labels.numpy()
 

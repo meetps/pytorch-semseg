@@ -1,11 +1,23 @@
 import torch
 import numpy as np
+import scipy.misc as m
 import torch.nn as nn
 import torch.nn.functional as F
+
+from torch.autograd import Variable
 
 
 def cross_entropy2d(input, target, weight=None, size_average=True):
     n, c, h, w = input.size()
+    nt, ct, ht, wt = target.size()
+
+    if h != ht or w != wt: # inconsistent size between input and target
+        lbl = target.data.cpu().numpy()
+        lbl = lbl.astype(float)
+        lbl = m.imresize(lbl, (h, w), 'nearest', mode='F')
+        lbl = lbl.astype(int)
+        target = Variable(torch.from_numpy(lbl).long().cuda())
+
     log_p = F.log_softmax(input, dim=1)
     log_p = log_p.transpose(1, 2).transpose(2, 3).contiguous().view(-1, c)
     log_p = log_p[target.view(n * h * w, 1).repeat(1, c) >= 0]
