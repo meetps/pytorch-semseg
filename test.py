@@ -2,6 +2,7 @@ import sys, os
 import torch
 import visdom
 import argparse
+import timeit
 import numpy as np
 import scipy.misc as misc
 import torch.nn as nn
@@ -23,11 +24,13 @@ except:
            CRF post-processing will not work")
 
 def test(args):
+    model_file_name = os.path.split(args.model_path)[1]
+    model_name = model_file_name[:model_file_name.find('_')]
 
     # Setup image
     print("Read Input Image from : {}".format(args.img_path))
     img = misc.imread(args.img_path)
-    
+
     data_loader = get_loader(args.dataset)
     data_path = get_data_path(args.dataset)
     loader = data_loader(data_path, is_transform=True, img_norm=args.img_norm)
@@ -35,7 +38,11 @@ def test(args):
     
     resized_img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]), interp='bicubic')
 
-    img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
+    orig_size = img.shape[:-1]
+    if model_name == 'pspnet':
+        img = misc.imresize(img, (orig_size[0]//2*2+1, orig_size[1]//2*2+1)) # uint8 with RGB mode, resize width and height which are odd numbers
+    else:
+        img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
     img = img[:, :, ::-1]
     img = img.astype(np.float64)
     img -= loader.mean
@@ -47,16 +54,23 @@ def test(args):
     img = torch.from_numpy(img).float()
 
     # Setup Model
-    model = get_model(args.model_path[:args.model_path.find('_')], n_classes)
+    model = get_model(model_name, n_classes, version=args.dataset)
     state = convert_state_dict(torch.load(args.model_path)['model_state'])
     model.load_state_dict(state)
     model.eval()
-    
-    model.cuda(0)
-    images = Variable(img.cuda(0), volatile=True)
 
-    outputs = F.softmax(model(images), dim=1)
-    
+    if torch.cuda.is_available():
+        model.cuda(0)
+        images = Variable(img.cuda(0), volatile=True)
+    else:
+        images = Variable(img, volatile=True)
+
+    if model_name == 'pspnet':
+        outputs = model(images)[-1]
+    else:
+        outputs = model(images)
+    #outputs = F.softmax(outputs, dim=1)
+
     if args.dcrf:
         unary = outputs.data.cpu().numpy()
         unary = np.squeeze(unary, 0)
@@ -79,13 +93,9 @@ def test(args):
         misc.imsave(dcrf_path, decoded_crf)
         print("Dense CRF Processed Mask Saved at: {}".format(dcrf_path))
 
-    if torch.cuda.is_available():
-        model.cuda(0)
-        images = Variable(img.cuda(0), volatile=True)
-    else:
-        images = Variable(img, volatile=True)
-
-    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
+    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0).astype(np.uint8)
+    if model_name == 'pspnet':
+        pred = misc.imresize(pred, orig_size, 'nearest') # uint8 with RGB mode
     decoded = loader.decode_segmap(pred)
     print('Classes found: ', np.unique(pred))
     misc.imsave(args.out_path, decoded)
