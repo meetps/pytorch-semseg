@@ -40,6 +40,7 @@ class pspnet(nn.Module):
     References:
     1) Original Author's code: https://github.com/hszhao/PSPNet
     2) Chainer implementation by @mitmul: https://github.com/mitmul/chainer-pspnet
+    3) TensorFlow implementation by @hellochick: https://github.com/hellochick/PSPNet-tensorflow
 
     Visualization:
     http://dgschwend.github.io/netscope/#/gist/6bfb59e6a3cfcb4e2bb8d47f827c2928
@@ -82,6 +83,10 @@ class pspnet(nn.Module):
         self.dropout = nn.Dropout2d(p=0.1, inplace=True)
         self.classification = nn.Conv2d(512, self.n_classes, 1, 1, 0)
 
+        # Auxiliary layers for training
+        self.convbnrelu4_aux = conv2DBatchNormRelu(in_channels=1024, k_size=3, n_filters=256, padding=1, stride=1, bias=False)
+        self.aux_cls = nn.Conv2d(256, self.n_classes, 1, 1, 0)
+
     def forward(self, x):
         inp_shape = x.shape[2:]
 
@@ -97,6 +102,12 @@ class pspnet(nn.Module):
         x = self.res_block2(x)
         x = self.res_block3(x)
         x = self.res_block4(x)
+
+        # Auxiliary layers for training
+        x_aux = self.convbnrelu4_aux(x)
+        x_aux = self.dropout(x_aux)
+        x_aux = self.aux_cls(x_aux)
+
         x = self.res_block5(x)
 
         x = self.pyramid_pooling(x)
@@ -105,8 +116,8 @@ class pspnet(nn.Module):
         x = self.dropout(x)
 
         x = self.classification(x)
-        x = F.upsample(x, size=inp_shape, mode='bilinear') 
-        return x
+        x = F.upsample(x, size=inp_shape, mode='bilinear')
+        return x_aux, x
 
     def load_pretrained_model(self, model_path):
         """
@@ -120,7 +131,7 @@ class pspnet(nn.Module):
 
         def _get_layer_params(layer, ltype):
 
-            if ltype == 'BNData': 
+            if ltype == 'BNData':
                 gamma = np.array(layer.blobs[0].data)
                 beta = np.array(layer.blobs[1].data)
                 mean = np.array(layer.blobs[2].data)
@@ -178,7 +189,7 @@ class pspnet(nn.Module):
             print("CONV {}: Original {} and trans weights {}".format(layer_name,
                                                                   w_shape,
                                                                   weights.shape))
-            
+
             module.weight.data.copy_(torch.from_numpy(weights).view_as(module.weight))
 
             if len(bias) != 0:
@@ -186,7 +197,7 @@ class pspnet(nn.Module):
                 print("CONV {}: Original {} and trans bias {}".format(layer_name,
                                                                       b_shape,
                                                                       bias.shape))
-                module.bias.data.copy_(torch.from_numpy(bias))
+                module.bias.data.copy_(torch.from_numpy(bias).view_as(module.bias))
 
 
         def _transfer_conv_bn(conv_layer_name, mother_module):
@@ -234,7 +245,8 @@ class pspnet(nn.Module):
                                 'conv5_3_pool3_conv': self.pyramid_pooling.paths[1].cbr_unit,
                                 'conv5_3_pool2_conv': self.pyramid_pooling.paths[2].cbr_unit,
                                 'conv5_3_pool1_conv': self.pyramid_pooling.paths[3].cbr_unit,
-                                'conv5_4': self.cbr_final.cbr_unit,}
+                                'conv5_4': self.cbr_final.cbr_unit,
+                                'conv4_' + str(self.block_config[2]+1): self.convbnrelu4_aux.cbr_unit,} # Auxiliary layers for training
 
         residual_layers = {'conv2': [self.res_block2, self.block_config[0]],
                            'conv3': [self.res_block3, self.block_config[1]],
@@ -247,6 +259,7 @@ class pspnet(nn.Module):
 
         # Transfer weights for final non-bn conv layer
         _transfer_conv('conv6', self.classification)
+        _transfer_conv('conv6_1', self.aux_cls)
 
         # Transfer weights for all residual layers
         for k, v in residual_layers.items():
@@ -314,11 +327,13 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
-    psp = pspnet(version='ade20k')
+    psp = pspnet(version='cityscapes')
     
     # Just need to do this one time
-    #psp.load_pretrained_model(model_path='/home/meet/models/pspnet101_cityscapes.caffemodel')
-    psp.load_pretrained_model(model_path='/home/meet/models/pspnet50_ADE20K.caffemodel')
+    caffemodel_dir_path = 'PATH_TO_PSPNET_DIR/evaluation/model'
+    psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'pspnet101_cityscapes.caffemodel'))
+    #psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'pspnet50_ADE20K.caffemodel'))
+    #psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'pspnet101_VOC2012.caffemodel'))
     
     # psp.load_state_dict(torch.load('psp.pth'))
 
@@ -326,8 +341,9 @@ if __name__ == '__main__':
     psp.cuda(cd)
     psp.eval()
 
-    dst = cl(root='/home/meet/datasets/cityscapes/')
-    img = m.imread('/home/meet/seg/leftImg8bit/demoVideo/stuttgart_00/stuttgart_00_000000_000010_leftImg8bit.png')
+    dataset_root_dir = 'PATH_TO_CITYSCAPES_DIR'
+    dst = cl(root=dataset_root_dir)
+    img = m.imread(os.path.join(dataset_root_dir, 'leftImg8bit/demoVideo/stuttgart_00/stuttgart_00_000000_000010_leftImg8bit.png'))
     m.imsave('cropped.png', img)
     orig_size = img.shape[:-1]
     img = img.transpose(2, 0, 1)
@@ -342,5 +358,12 @@ if __name__ == '__main__':
     # m.imsave('ade20k_sttutgart_tiled.png', decoded)
     m.imsave('ade20k_sttutgart_tiled.png', pred) 
 
-    torch.save(psp.state_dict(), "psp_ade20k.pth")
+    checkpoints_dir_path = 'checkpoints'
+    if not os.path.exists(checkpoints_dir_path):
+        os.mkdir(checkpoints_dir_path)
+    psp = torch.nn.DataParallel(psp, device_ids=range(torch.cuda.device_count())) # append `module.`
+    state = {'model_state': psp.state_dict()}
+    torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_101_cityscapes.pth"))
+    #torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_50_ade20k.pth"))
+    #torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_101_pascalvoc.pth"))
     print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
