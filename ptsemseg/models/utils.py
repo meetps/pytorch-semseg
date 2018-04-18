@@ -375,17 +375,17 @@ class bottleNeckPSP(nn.Module):
                  stride, dilation=1):
         super(bottleNeckPSP, self).__init__()
             
-        self.cbr1 = conv2DBatchNormRelu(in_channels, mid_channels, 1, 1, 0, bias=False) 
+        self.cbr1 = conv2DBatchNormRelu(in_channels, mid_channels, 1, stride=1, padding=0, bias=False) 
         if dilation > 1: 
-            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 1, 
-                                            padding=dilation, bias=False, 
-                                            dilation=dilation) 
+            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3,
+                                            stride=stride, padding=dilation,
+                                            bias=False, dilation=dilation) 
         else:
-            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 
-                                            stride=stride, padding=1, 
+            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3,
+                                            stride=stride, padding=1,
                                             bias=False, dilation=1)
-        self.cb3 = conv2DBatchNorm(mid_channels, out_channels, 1, 1, 0, bias=False)
-        self.cb4 = conv2DBatchNorm(in_channels, out_channels, 1, stride, 0, bias=False)
+        self.cb3 = conv2DBatchNorm(mid_channels, out_channels, 1, stride=1, padding=0, bias=False)
+        self.cb4 = conv2DBatchNorm(in_channels, out_channels, 1, stride=stride, padding=0, bias=False)
 
     def forward(self, x):
         conv = self.cb3(self.cbr2(self.cbr1(x)))
@@ -400,14 +400,14 @@ class bottleNeckIdentifyPSP(nn.Module):
 
         self.cbr1 = conv2DBatchNormRelu(in_channels, mid_channels, 1, 1, 0, bias=False) 
         if dilation > 1: 
-            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 1, 
-                                            padding=dilation, bias=False, 
-                                            dilation=dilation) 
+            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3,
+                                            stride=1, padding=dilation,
+                                            bias=False, dilation=dilation) 
         else:
-            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3, 
+            self.cbr2 = conv2DBatchNormRelu(mid_channels, mid_channels, 3,
                                             stride=1, padding=1, 
                                             bias=False, dilation=1)
-        self.cb3 = conv2DBatchNorm(mid_channels, in_channels, 1, 1, 0, bias=False)
+        self.cb3 = conv2DBatchNorm(mid_channels, in_channels, 1, stride=1, padding=0, bias=False)
         
     def forward(self, x):
         residual = x
@@ -424,7 +424,7 @@ class residualBlockPSP(nn.Module):
             stride = 1
 
         layers = [bottleNeckPSP(in_channels, mid_channels, out_channels, stride, dilation)]
-        for i in range(n_blocks):
+        for i in range(n_blocks-1):
             layers.append(bottleNeckIdentifyPSP(out_channels, mid_channels, stride, dilation))
 
         self.layers = nn.Sequential(*layers)
