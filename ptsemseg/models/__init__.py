@@ -8,7 +8,7 @@ from ptsemseg.models.linknet import *
 from ptsemseg.models.frrn import *
 
 
-def get_model(name, n_classes):
+def get_model(name, n_classes, version=None):
     model = _get_model_instance(name)
 
     if name in ['frrnA', 'frrnB']:
@@ -30,7 +30,10 @@ def get_model(name, n_classes):
                       is_batchnorm=True,
                       in_channels=3,
                       is_deconv=True)
-    
+
+    elif name == 'pspnet':
+        model = model(n_classes=n_classes, version=version)
+
     else:
         model = model(n_classes=n_classes)
 
