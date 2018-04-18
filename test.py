@@ -1,10 +1,10 @@
-import sys
+import sys, os
 import torch
 import visdom
 import argparse
 import numpy as np
-import torch.nn as nn
 import scipy.misc as misc
+import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
@@ -30,18 +30,19 @@ def test(args):
     
     data_loader = get_loader(args.dataset)
     data_path = get_data_path(args.dataset)
-    loader = data_loader(data_path, is_transform=True)
+    loader = data_loader(data_path, is_transform=True, img_norm=args.img_norm)
     n_classes = loader.n_classes
     
     resized_img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]), interp='bicubic')
 
+    img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
     img = img[:, :, ::-1]
     img = img.astype(np.float64)
     img -= loader.mean
-    img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
-    img = img.astype(float) / 255.0
-    # NHWC -> NCWH
-    img = img.transpose(2, 0, 1) 
+    if args.img_norm:
+        img = img.astype(float) / 255.0
+    # NHWC -> NCHW
+    img = img.transpose(2, 0, 1)
     img = np.expand_dims(img, 0)
     img = torch.from_numpy(img).float()
 
@@ -56,7 +57,7 @@ def test(args):
 
     outputs = F.softmax(model(images), dim=1)
     
-    if args.dcrf == "True":
+    if args.dcrf:
         unary = outputs.data.cpu().numpy()
         unary = np.squeeze(unary, 0)
         unary = -np.log(unary)
@@ -96,8 +97,19 @@ if __name__ == '__main__':
                         help='Path to the saved model')
     parser.add_argument('--dataset', nargs='?', type=str, default='pascal', 
                         help='Dataset to use [\'pascal, camvid, ade20k etc\']')
-    parser.add_argument('--dcrf', nargs='?', type=str, default="False",
-                        help='Enable DenseCRF based post-processing')
+
+    parser.add_argument('--img_norm', dest='img_norm', action='store_true', 
+                        help='Enable input image scales normalization [0, 1] | True by default')
+    parser.add_argument('--no-img_norm', dest='img_norm', action='store_false', 
+                        help='Disable input image scales normalization [0, 1] | True by default')
+    parser.set_defaults(img_norm=True)
+
+    parser.add_argument('--dcrf', dest='dcrf', action='store_true', 
+                        help='Enable DenseCRF based post-processing | False by default')
+    parser.add_argument('--no-dcrf', dest='dcrf', action='store_false', 
+                        help='Disable DenseCRF based post-processing | False by default')
+    parser.set_defaults(dcrf=False)
+
     parser.add_argument('--img_path', nargs='?', type=str, default=None, 
                         help='Path of the input image')
     parser.add_argument('--out_path', nargs='?', type=str, default=None, 

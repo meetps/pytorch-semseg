@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import torch
 import visdom
 import argparse
@@ -26,8 +26,8 @@ def train(args):
     # Setup Dataloader
     data_loader = get_loader(args.dataset)
     data_path = get_data_path(args.dataset)
-    t_loader = data_loader(data_path, is_transform=True, img_size=(args.img_rows, args.img_cols), augmentations=data_aug)
-    v_loader = data_loader(data_path, is_transform=True, split='val', img_size=(args.img_rows, args.img_cols))
+    t_loader = data_loader(data_path, is_transform=True, img_size=(args.img_rows, args.img_cols), augmentations=data_aug, img_norm=args.img_norm)
+    v_loader = data_loader(data_path, is_transform=True, split='val', img_size=(args.img_rows, args.img_cols), img_norm=args.img_norm)
 
     n_classes = t_loader.n_classes
     trainloader = data.DataLoader(t_loader, batch_size=args.batch_size, num_workers=8, shuffle=True)
@@ -132,7 +132,14 @@ if __name__ == '__main__':
     parser.add_argument('--img_rows', nargs='?', type=int, default=256, 
                         help='Height of the input image')
     parser.add_argument('--img_cols', nargs='?', type=int, default=256, 
-                        help='Height of the input image')
+                        help='Width of the input image')
+
+    parser.add_argument('--img_norm', dest='img_norm', action='store_true', 
+                        help='Enable input image scales normalization [0, 1] | True by default')
+    parser.add_argument('--no-img_norm', dest='img_norm', action='store_false', 
+                        help='Disable input image scales normalization [0, 1] | True by default')
+    parser.set_defaults(img_norm=True)
+
     parser.add_argument('--n_epoch', nargs='?', type=int, default=100, 
                         help='# of the epochs')
     parser.add_argument('--batch_size', nargs='?', type=int, default=1, 
@@ -143,7 +150,12 @@ if __name__ == '__main__':
                         help='Divider for # of features to use')
     parser.add_argument('--resume', nargs='?', type=str, default=None,    
                         help='Path to previous saved model to restart from')
-    parser.add_argument('--visdom', nargs='?', type=bool, default=False, 
-                        help='Show visualization(s) on visdom | False by  default')
+
+    parser.add_argument('--visdom', dest='visdom', action='store_true', 
+                        help='Enable visualization(s) on visdom | False by default')
+    parser.add_argument('--no-visdom', dest='visdom', action='store_false', 
+                        help='Disable visualization(s) on visdom | False by default')
+    parser.set_defaults(visdom=False)
+
     args = parser.parse_args()
     train(args)
