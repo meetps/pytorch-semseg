@@ -7,6 +7,7 @@ from torch.autograd import Variable
 
 from ptsemseg import caffe_pb2
 from ptsemseg.models.utils import *
+from ptsemseg.loss import *
 
 pspnet_specs = {
     'pascalvoc': 
@@ -87,6 +88,9 @@ class pspnet(nn.Module):
         self.convbnrelu4_aux = conv2DBatchNormRelu(in_channels=1024, k_size=3, n_filters=256, padding=1, stride=1, bias=False)
         self.aux_cls = nn.Conv2d(256, self.n_classes, 1, 1, 0)
 
+        # Define auxiliary loss function
+        self.loss = multi_scale_cross_entropy2d
+
     def forward(self, x):
         inp_shape = x.shape[2:]
 
@@ -117,7 +121,11 @@ class pspnet(nn.Module):
 
         x = self.classification(x)
         x = F.upsample(x, size=inp_shape, mode='bilinear')
-        return x_aux, x
+
+        if self.training:
+            return x_aux, x
+        else: # eval mode
+            return x
 
     def load_pretrained_model(self, model_path):
         """
@@ -313,9 +321,9 @@ class pspnet(nn.Module):
                     if include_flip_mode:
                         flp = flp.cuda()
 
-                psub1 = F.softmax(self.forward(inp)[-1], dim=1).data.cpu().numpy()
+                psub1 = F.softmax(self.forward(inp), dim=1).data.cpu().numpy()
                 if include_flip_mode:
-                    psub2 = F.softmax(self.forward(flp)[-1], dim=1).data.cpu().numpy()
+                    psub2 = F.softmax(self.forward(flp), dim=1).data.cpu().numpy()
                     psub = (psub1 + psub2[:, :, :, ::-1]) / 2.0
                 else:
                     psub = psub1
@@ -363,7 +371,7 @@ if __name__ == '__main__':
     img = img.unsqueeze(0)
 
     out = psp.tile_predict(img)
-    pred = np.argmax(out, axis=1).astype(np.uint8)[0]
+    pred = np.argmax(out, axis=1)[0]
     decoded = dst.decode_segmap(pred)
     m.imsave('cityscapes_sttutgart_tiled.png', decoded)
     #m.imsave('cityscapes_sttutgart_tiled.png', pred) 
