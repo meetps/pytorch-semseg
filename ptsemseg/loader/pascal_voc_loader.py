@@ -51,11 +51,12 @@ class pascalVOCLoader(data.Dataset):
                    rather than VOC 2011) - 904 images
     """
     def __init__(self, root, split='train_aug', is_transform=False,
-                 img_size=512, augmentations=None):
+                 img_size=512, augmentations=None, img_norm=True):
         self.root = os.path.expanduser(root)
         self.split = split
         self.is_transform = is_transform
         self.augmentations = augmentations
+        self.img_norm = img_norm
         self.n_classes = 21
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
@@ -89,14 +90,15 @@ class pascalVOCLoader(data.Dataset):
 
 
     def transform(self, img, lbl):
-        img = img[:, :, ::-1]
+        img = m.imresize(img, (self.img_size[0], self.img_size[1])) # uint8 with RGB mode
+        img = img[:, :, ::-1] # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
-        # Resize scales images from 0 to 255, thus we need
-        # to divide by 255.0
-        img = img.astype(float) / 255.0
-        # NHWC -> NCWH
+        if self.img_norm:
+            # Resize scales images from 0 to 255, thus we need
+            # to divide by 255.0
+            img = img.astype(float) / 255.0
+        # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
         lbl[lbl==255] = 0
