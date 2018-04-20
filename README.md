@@ -20,6 +20,7 @@ This repository aims at mirroring popular semantic segmentation architectures in
 ### Networks implemented
 
 * [PSPNet](https://arxiv.org/abs/1612.01105) - With support for loading pretrained models w/o caffe dependency
+* [ICNet](https://arxiv.org/pdf/1704.08545.pdf) - With optional batchnorm and pretrained models
 * [FRRN](https://arxiv.org/abs/1611.08323) - Model A and B
 * [FCN](https://arxiv.org/abs/1411.4038) - All 1 (FCN32s), 2 (FCN16s) and 3 (FCN8s) stream variants
 * [U-Net](https://arxiv.org/abs/1505.04597) - With optional deconvolution and batchnorm
@@ -124,7 +125,7 @@ python test.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
 @article{mshahsemseg,
     Author = {Meet P Shah},
     Title = {Semantic Segmentation Architectures Implemented in PyTorch.},
-    Journal = {https://github.com/meetsahh1995/pytorch-semseg},
+    Journal = {https://github.com/meetshah1995/pytorch-semseg},
     Year = {2017}
 }
 ```
