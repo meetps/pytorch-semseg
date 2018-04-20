@@ -86,16 +86,7 @@ def train(args):
             optimizer.zero_grad()
             outputs = model(images)
 
-            if args.arch == 'pspnet':
-                aux_cls, final_cls = outputs
-
-                aux_loss = loss_fn(input=aux_cls, target=labels)
-                final_loss = loss_fn(input=final_cls, target=labels)
-
-                LAMBDA1, LAMBDA2 = 0.4, 1.0
-                loss = LAMBDA1 * aux_loss + LAMBDA2 * final_loss
-            else:
-                loss = loss_fn(input=outputs, target=labels)
+            loss = loss_fn(input=outputs, target=labels)
 
             loss.backward()
             optimizer.step()

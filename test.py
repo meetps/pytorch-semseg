@@ -39,7 +39,7 @@ def test(args):
     resized_img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]), interp='bicubic')
 
     orig_size = img.shape[:-1]
-    if model_name == 'pspnet':
+    if model_name in ['pspnet', 'icnet', 'icnetBN']:
         img = misc.imresize(img, (orig_size[0]//2*2+1, orig_size[1]//2*2+1)) # uint8 with RGB mode, resize width and height which are odd numbers
     else:
         img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]))
@@ -65,10 +65,7 @@ def test(args):
     else:
         images = Variable(img, volatile=True)
 
-    if model_name == 'pspnet':
-        outputs = model(images)[-1]
-    else:
-        outputs = model(images)
+    outputs = model(images)
     #outputs = F.softmax(outputs, dim=1)
 
     if args.dcrf:
@@ -93,9 +90,10 @@ def test(args):
         misc.imsave(dcrf_path, decoded_crf)
         print("Dense CRF Processed Mask Saved at: {}".format(dcrf_path))
 
-    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0).astype(np.uint8)
-    if model_name == 'pspnet':
-        pred = misc.imresize(pred, orig_size, 'nearest') # uint8 with RGB mode
+    pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
+    if model_name in ['pspnet', 'icnet', 'icnetBN']:
+        pred = pred.astype(np.float32)
+        pred = misc.imresize(pred, orig_size, 'nearest', mode='F') # float32 with F mode, resize back to orig_size
     decoded = loader.decode_segmap(pred)
     print('Classes found: ', np.unique(pred))
     misc.imsave(args.out_path, decoded)

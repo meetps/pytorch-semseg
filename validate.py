@@ -49,27 +49,22 @@ def validate(args):
         images = Variable(images.cuda(), volatile=True)
         #labels = Variable(labels.cuda(), volatile=True)
 
-        if model_name == 'pspnet':
-            outputs = model(images)[-1]
-            if args.include_flip_mode:
-                outputs = outputs.data.cpu().numpy()
-                flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
-                flipped_images = Variable(torch.from_numpy( flipped_images ).float().cuda(), volatile=True)
-                outputs_flipped = model( flipped_images )[-1].data.cpu().numpy()
-                outputs = (outputs + outputs_flipped[:, :, :, ::-1]) / 2.0
+        if args.eval_flip:
+            outputs = model(images)
+
+            # Flip images in numpy (not support in tensor)
+            outputs = outputs.data.cpu().numpy()
+            flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
+            flipped_images = Variable(torch.from_numpy( flipped_images ).float().cuda(), volatile=True)
+            outputs_flipped = model( flipped_images )
+            outputs_flipped = outputs_flipped.data.cpu().numpy()
+            outputs = (outputs + outputs_flipped[:, :, :, ::-1]) / 2.0
+
+            pred = np.argmax(outputs, axis=1)
         else:
             outputs = model(images)
-            if args.include_flip_mode:
-                outputs = outputs.data.cpu().numpy()
-                flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
-                flipped_images = Variable(torch.from_numpy( flipped_images ).float().cuda(), volatile=True)
-                outputs_flipped = model( flipped_images ).data.cpu().numpy()
-                outputs = (outputs + outputs_flipped[:, :, :, ::-1]) / 2.0
+            pred = outputs.data.max(1)[1].cpu().numpy()
 
-        if args.include_flip_mode:
-            pred = np.argmax(outputs, axis=1).astype(np.uint8)
-        else:
-            pred = outputs.data.max(1)[1].cpu().numpy().astype(np.uint8)
         #gt = labels.data.cpu().numpy()
         gt = labels.numpy()
 
@@ -103,11 +98,11 @@ if __name__ == '__main__':
                         help='Disable input image scales normalization [0, 1] | True by default')
     parser.set_defaults(img_norm=True)
 
-    parser.add_argument('--include_flip_mode', dest='include_flip_mode', action='store_true', 
+    parser.add_argument('--eval_flip', dest='eval_flip', action='store_true', 
                         help='Enable evaluation with flipped image | True by default')
-    parser.add_argument('--no-include_flip_mode', dest='include_flip_mode', action='store_false', 
+    parser.add_argument('--no-eval_flip', dest='eval_flip', action='store_false', 
                         help='Disable evaluation with flipped image | True by default')
-    parser.set_defaults(include_flip_mode=True)
+    parser.set_defaults(eval_flip=True)
 
     parser.add_argument('--batch_size', nargs='?', type=int, default=1, 
                         help='Batch Size')
