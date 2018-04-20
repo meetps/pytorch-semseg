@@ -23,7 +23,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
     https://github.com/CSAILVision/placeschallenge/tree/master/sceneparsing
 
     """
-    def __init__(self, root, split="training", is_transform=False, img_size=512):
+    def __init__(self, root, split="training", is_transform=False, img_size=512, augmentations=None, img_norm=True):
         """__init__
 
         :param root:
@@ -34,6 +34,8 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         self.root = root
         self.split = split
         self.is_transform = is_transform
+        self.augmentations = augmentations
+        self.img_norm = img_norm
         self.n_classes = 151  # 0 is reserved for "other"
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
@@ -67,6 +69,9 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         lbl = m.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.uint8)
 
+        if self.augmentations is not None:
+            img, lbl = self.augmentations(img, lbl)
+
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
 
@@ -78,14 +83,15 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        img = img[:, :, ::-1]
+        img = m.imresize(img, (self.img_size[0], self.img_size[1])) # uint8 with RGB mode
+        img = img[:, :, ::-1] # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
-        # Resize scales images from 0 to 255, thus we need
-        # to divide by 255.0
-        img = img.astype(float) / 255.0
-        # NHWC -> NCWH
+        if self.img_norm:
+            # Resize scales images from 0 to 255, thus we need
+            # to divide by 255.0
+            img = img.astype(float) / 255.0
+        # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
         classes = np.unique(lbl)

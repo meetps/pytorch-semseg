@@ -25,11 +25,12 @@ class NYUv2Loader(data.Dataset):
     """
     
     
-    def __init__(self, root, split="training", is_transform=False, img_size=(480,640), augmentations=None):
+    def __init__(self, root, split="training", is_transform=False, img_size=(480,640), augmentations=None, img_norm=True):
         self.root = root
         self.is_transform = is_transform
         self.n_classes = 14
         self.augmentations = augmentations
+        self.img_norm = img_norm
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
@@ -71,14 +72,15 @@ class NYUv2Loader(data.Dataset):
 
 
     def transform(self, img, lbl):
-        img = img[:, :, ::-1]
+        img = m.imresize(img, (self.img_size[0], self.img_size[1])) # uint8 with RGB mode
+        img = img[:, :, ::-1] # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))
-        # Resize scales images from 0 to 255, thus we need
-        # to divide by 255.0
-        img = img.astype(float) / 255.0
-        # NHWC -> NCWH
+        if self.img_norm:
+            # Resize scales images from 0 to 255, thus we need
+            # to divide by 255.0
+            img = img.astype(float) / 255.0
+        # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
         classes = np.unique(lbl)
