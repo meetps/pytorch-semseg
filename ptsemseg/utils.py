@@ -55,7 +55,11 @@ def convert_state_dict(state_dict):
     
     """
     new_state_dict = OrderedDict()
-    for k, v in state_dict.items():
-        name = k[7:] # remove `module.`
-        new_state_dict[name] = v
+    for elem in state_dict.items():
+        model_state_dict[elem[0][7:]] = elem[1]
     return new_state_dict
+    # new_state_dict = OrderedDict()
+    # for k, v in state_dict.items():
+    #     name = k[7:] # remove `module.`
+    #     new_state_dict[name] = v
+    # return new_state_dict

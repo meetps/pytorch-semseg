@@ -22,6 +22,7 @@ def get_loader(name):
         'cityscapes': cityscapesLoader,
         'nyuv2': NYUv2Loader,
         'sunrgbd': SUNRGBDLoader,
+        'lfw': LFWLoader,
     }[name]
 
 

@@ -1,4 +1,9 @@
 {
+  "lfw":
+  {
+    "data_path":"/home/amittel/Desktop/pytorch-semseg/LFW"
+  },
+  
   "pascal":
   {
     "data_path": "/home/gpu_users/meetshah/segdata/pascal/VOCdevkit/VOC2012/"
