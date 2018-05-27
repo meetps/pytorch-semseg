@@ -10,7 +10,7 @@ from ptsemseg.models.utils import *
 from ptsemseg.loss import *
 
 pspnet_specs = {
-    'pascalvoc': 
+    'pascal': 
     {
          'n_classes': 21,
          'input_size': (473, 473),
