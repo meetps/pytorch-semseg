@@ -61,4 +61,4 @@ def _get_model_instance(name):
             'frrnB': frrn,
         }[name]
     except:
-        print('Model {} not available'.format(name))
+	raise ValueError('ERROR: Model {} not available'.format(name))
