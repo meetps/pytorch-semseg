@@ -18,17 +18,12 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
     elif h != ht and w != wt:
         raise Exception("Only support upsampling")
 
-    log_p = F.log_softmax(input, dim=1)
-    log_p = log_p.transpose(1, 2).transpose(2, 3).contiguous().view(-1, c)
-    log_p = log_p[target.view(-1, 1).repeat(1, c) >= 0]
-    log_p = log_p.view(-1, c)
-
-    mask = target >= 0
-    target = target[mask]
-    loss = F.nll_loss(log_p, target, ignore_index=250,
-                      weight=weight, size_average=False)
-    if size_average:
-        loss /= mask.data.sum()
+    input = input.transpose(1, 2).transpose(2, 3).contiguous().view(-1, c)
+    target = target.view(-1)
+    loss = F.cross_entropy(input, target, 
+                           weight=weight, 
+                           size_average=size_average,
+                           ignore_index=250)
     return loss
 
 def bootstrapped_cross_entropy2d(input, target, K, weight=None, size_average=True):
