@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.utils import data
 
@@ -25,6 +24,9 @@ torch.backends.cudnn.benchmark = True
 cudnn.benchmark = True
 
 def validate(args):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model_file_name = os.path.split(args.model_path)[1]
     model_name = model_file_name[:model_file_name.find('_')]
 
@@ -41,13 +43,12 @@ def validate(args):
     state = convert_state_dict(torch.load(args.model_path)['model_state'])
     model.load_state_dict(state)
     model.eval()
-    model.cuda()
+    model.to(device)
 
     for i, (images, labels) in enumerate(valloader):
         start_time = timeit.default_timer()
 
-        images = Variable(images.cuda(), volatile=True)
-        #labels = Variable(labels.cuda(), volatile=True)
+        images = images.to(device)
 
         if args.eval_flip:
             outputs = model(images)
@@ -65,7 +66,6 @@ def validate(args):
             outputs = model(images)
             pred = outputs.data.max(1)[1].cpu().numpy()
 
-        #gt = labels.data.cpu().numpy()
         gt = labels.numpy()
 
         if args.measure_time:

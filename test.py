@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from torch.autograd import Variable
 from torch.utils import data
 from tqdm import tqdm
 
@@ -24,6 +23,9 @@ except:
            CRF post-processing will not work")
 
 def test(args):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model_file_name = os.path.split(args.model_path)[1]
     model_name = model_file_name[:model_file_name.find('_')]
 
@@ -58,15 +60,10 @@ def test(args):
     state = convert_state_dict(torch.load(args.model_path)['model_state'])
     model.load_state_dict(state)
     model.eval()
+    model.to(device)
 
-    if torch.cuda.is_available():
-        model.cuda(0)
-        images = Variable(img.cuda(0), volatile=True)
-    else:
-        images = Variable(img, volatile=True)
-
+    images = img.to(device)
     outputs = model(images)
-    #outputs = F.softmax(outputs, dim=1)
 
     if args.dcrf:
         unary = outputs.data.cpu().numpy()

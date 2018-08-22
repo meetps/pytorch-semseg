@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from torch.autograd import Variable
 from torch.utils import data
 from tqdm import tqdm
 
@@ -18,6 +17,8 @@ from ptsemseg.loss import *
 from ptsemseg.augmentations import *
 
 def train(args):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Setup Augmentations
     data_aug= Compose([RandomRotate(10),                                        
@@ -48,10 +49,9 @@ def train(args):
                                      legend=['Loss']))
 
     # Setup Model
-    model = get_model(args.arch, n_classes)
+    model = get_model(args.arch, n_classes).to(device)
     
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
-    model.cuda()
     
     # Check if model has custom optimizer / loss
     if hasattr(model.module, 'optimizer'):
@@ -80,8 +80,8 @@ def train(args):
     for epoch in range(args.n_epoch):
         model.train()
         for i, (images, labels) in enumerate(trainloader):
-            images = Variable(images.cuda())
-            labels = Variable(labels.cuda())
+            images = images.to(device)
+            labels = labels.to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -103,8 +103,8 @@ def train(args):
 
         model.eval()
         for i_val, (images_val, labels_val) in tqdm(enumerate(valloader)):
-            images_val = Variable(images_val.cuda(), volatile=True)
-            labels_val = Variable(labels_val.cuda(), volatile=True)
+            images_val = images_val.to(device)
+            labels_val = labels_val.to(device)
 
             outputs = model(images_val)
             pred = outputs.data.max(1)[1].cpu().numpy()
