@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 from ptsemseg.models.utils import *
 
+
 class refinenet(nn.Module):
     """
     RefineNet: Multi-Path Refinement Networks for High-Resolution Semantic Segmentation
@@ -19,8 +20,5 @@ class refinenet(nn.Module):
 
         pass
 
-
-
     def forward(self, x):
-        pass 
-
+        pass

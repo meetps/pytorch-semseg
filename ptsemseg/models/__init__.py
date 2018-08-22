@@ -12,32 +12,30 @@ from ptsemseg.models.frrn import *
 def get_model(name, n_classes, version=None):
     model = _get_model_instance(name)
 
-    if name in ['frrnA', 'frrnB']:
+    if name in ["frrnA", "frrnB"]:
         model = model(n_classes, model_type=name[-1])
 
-    elif name in ['fcn32s', 'fcn16s', 'fcn8s']:
+    elif name in ["fcn32s", "fcn16s", "fcn8s"]:
         model = model(n_classes=n_classes)
         vgg16 = models.vgg16(pretrained=True)
         model.init_vgg16_params(vgg16)
 
-    elif name == 'segnet':
-        model = model(n_classes=n_classes,
-                      is_unpooling=True)
+    elif name == "segnet":
+        model = model(n_classes=n_classes, is_unpooling=True)
         vgg16 = models.vgg16(pretrained=True)
         model.init_vgg16_params(vgg16)
 
-    elif name == 'unet':
-        model = model(n_classes=n_classes,
-                      is_batchnorm=True,
-                      in_channels=3,
-                      is_deconv=True)
+    elif name == "unet":
+        model = model(
+            n_classes=n_classes, is_batchnorm=True, in_channels=3, is_deconv=True
+        )
 
-    elif name == 'pspnet':
+    elif name == "pspnet":
         model = model(n_classes=n_classes, version=version)
 
-    elif name == 'icnet':
+    elif name == "icnet":
         model = model(n_classes=n_classes, with_bn=False, version=version)
-    elif name == 'icnetBN':
+    elif name == "icnetBN":
         model = model(n_classes=n_classes, with_bn=True, version=version)
 
     else:
@@ -45,20 +43,21 @@ def get_model(name, n_classes, version=None):
 
     return model
 
+
 def _get_model_instance(name):
     try:
         return {
-            'fcn32s': fcn32s,
-            'fcn8s': fcn8s,
-            'fcn16s': fcn16s,
-            'unet': unet,
-            'segnet': segnet,
-            'pspnet': pspnet,
-			'icnet': icnet,
-			'icnetBN': icnet,
-            'linknet': linknet,
-            'frrnA': frrn,
-            'frrnB': frrn,
+            "fcn32s": fcn32s,
+            "fcn8s": fcn8s,
+            "fcn16s": fcn16s,
+            "unet": unet,
+            "segnet": segnet,
+            "pspnet": pspnet,
+            "icnet": icnet,
+            "icnetBN": icnet,
+            "linknet": linknet,
+            "frrnA": frrn,
+            "frrnB": frrn,
         }[name]
     except:
-        print('Model {} not available'.format(name))
+        print("Model {} not available".format(name))

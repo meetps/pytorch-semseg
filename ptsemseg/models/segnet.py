@@ -2,8 +2,8 @@ import torch.nn as nn
 
 from ptsemseg.models.utils import *
 
-class segnet(nn.Module):
 
+class segnet(nn.Module):
     def __init__(self, n_classes=21, in_channels=3, is_unpooling=True):
         super(segnet, self).__init__()
 
@@ -38,13 +38,8 @@ class segnet(nn.Module):
 
         return up1
 
-
     def init_vgg16_params(self, vgg16):
-        blocks = [self.down1,
-                  self.down2,
-                  self.down3,
-                  self.down4,
-                  self.down5]
+        blocks = [self.down1, self.down2, self.down3, self.down4, self.down5]
 
         ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
         features = list(vgg16.features.children())
@@ -57,12 +52,13 @@ class segnet(nn.Module):
         merged_layers = []
         for idx, conv_block in enumerate(blocks):
             if idx < 2:
-                units = [conv_block.conv1.cbr_unit,
-                         conv_block.conv2.cbr_unit]
+                units = [conv_block.conv1.cbr_unit, conv_block.conv2.cbr_unit]
             else:
-                units = [conv_block.conv1.cbr_unit,
-                         conv_block.conv2.cbr_unit,
-                         conv_block.conv3.cbr_unit]
+                units = [
+                    conv_block.conv1.cbr_unit,
+                    conv_block.conv2.cbr_unit,
+                    conv_block.conv3.cbr_unit,
+                ]
             for _unit in units:
                 for _layer in _unit:
                     if isinstance(_layer, nn.Conv2d):
