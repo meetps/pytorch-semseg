@@ -46,7 +46,7 @@ This repository aims at mirroring popular semantic segmentation architectures in
 
 ### Requirements
 
-* pytorch >=0.3.0
+* pytorch >=0.4.0
 * torchvision ==0.2.0
 * visdom >=1.0.1 (for loss and results visualization)
 * scipy
@@ -73,36 +73,22 @@ python -m visdom.server
 **To train the model :**
 
 ```
-python train.py [-h] [--arch [ARCH]] [--dataset [DATASET]]
-                [--img_rows [IMG_ROWS]] [--img_cols [IMG_COLS]]
-                [--n_epoch [N_EPOCH]] [--batch_size [BATCH_SIZE]]
-                [--l_rate [L_RATE]] [--feature_scale [FEATURE_SCALE]]
-                [--visdom [VISDOM]]
+python train.py [-h] [--config [CONFIG]] 
 
-  --arch           Architecture to use ['fcn8s, unet, segnet etc']
-  --dataset        Dataset to use ['pascal, camvid, ade20k etc']
-  --img_rows       Height of the input image
-  --img_cols       Width of the input image
-  --n_epoch        # of the epochs
-  --batch_size     Batch Size
-  --l_rate         Learning Rate
-  --feature_scale  Divider for # of features to use
-  --visdom         Show visualization(s) on visdom | False by default
+--config                Configuration file to use
 ```
 
 **To validate the model :**
 
 ```
-python validate.py [-h] [--model_path [MODEL_PATH]] [--dataset [DATASET]]
-                   [--img_rows [IMG_ROWS]] [--img_cols [IMG_COLS]]
-                   [--batch_size [BATCH_SIZE]] [--split [SPLIT]]
+usage: validate.py [-h] [--config [CONFIG]] [--model_path [MODEL_PATH]]
+                       [--eval_flip] [--measure_time]
 
-  --model_path   Path to the saved model
-  --dataset      Dataset to use ['pascal, camvid, ade20k etc']
-  --img_rows     Height of the input image
-  --img_cols     Width of the input image
-  --batch_size   Batch Size
-  --split        Split of dataset to validate on
+  --config              Config file to be used
+  --model_path          Path to the saved model
+  --eval_flip           Enable evaluation with flipped image | True by default
+  --measure_time        Enable evaluation with time (fps) measurement | True
+                        by default
 ```
 
 **To test the model w.r.t. a dataset on custom images(s):**
