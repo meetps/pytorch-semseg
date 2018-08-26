@@ -1,4 +1,6 @@
-import sys, os
+import os
+import sys
+import yaml
 import torch
 import visdom
 import argparse
@@ -17,7 +19,7 @@ from ptsemseg.loss import *
 from ptsemseg.augmentations import *
 
 
-def train(args):
+def train(cfg):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -25,37 +27,35 @@ def train(args):
     data_aug = Compose([RandomRotate(10), RandomHorizontallyFlip()])
 
     # Setup Dataloader
-    data_loader = get_loader(args.dataset)
-    data_path = get_data_path(args.dataset)
+    data_loader = get_loader(cfg['data']['dataset'])
+    data_path = get_data_path(cfg['data']['dataset'])
 
     t_loader = data_loader(
         data_path,
         is_transform=True,
-        img_size=(args.img_rows, args.img_cols),
-        augmentations=data_aug,
-        img_norm=args.img_norm,
-    )
+        split=cfg['data']['train_split'],
+        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']),
+        augmentations=data_aug)
 
     v_loader = data_loader(
         data_path,
         is_transform=True,
-        split="val",
-        img_size=(args.img_rows, args.img_cols),
-        img_norm=args.img_norm,
+        split=cfg['data']['val_split'],
+        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']),
     )
 
     n_classes = t_loader.n_classes
     trainloader = data.DataLoader(
-        t_loader, batch_size=args.batch_size, num_workers=8, shuffle=True
+        t_loader, batch_size=cfg['training']['batch_size'], num_workers=8, shuffle=True
     )
 
-    valloader = data.DataLoader(v_loader, batch_size=args.batch_size, num_workers=8)
+    valloader = data.DataLoader(v_loader, batch_size=cfg['training']['batch_size'], num_workers=8)
 
     # Setup Metrics
-    running_metrics = runningScore(n_classes)
+    running_metrics_val = runningScore(n_classes)
 
     # Setup visdom for visualization
-    if args.visdom:
+    if cfg['training']['visdom']:
         vis = visdom.Visdom()
 
         loss_window = vis.line(
@@ -70,7 +70,7 @@ def train(args):
         )
 
     # Setup Model
-    model = get_model(args.arch, n_classes).to(device)
+    model = get_model(cfg['model']['arch'], n_classes).to(device)
 
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
 
@@ -79,7 +79,9 @@ def train(args):
         optimizer = model.module.optimizer
     else:
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.l_rate, momentum=0.99, weight_decay=5e-4
+            model.parameters(), lr=cfg['training']['l_rate'], 
+                                momentum=cfg['training']['momentum'],
+                                weight_decay=cfg['training']['weight_decay']
         )
 
     if hasattr(model.module, "loss"):
@@ -88,26 +90,30 @@ def train(args):
     else:
         loss_fn = cross_entropy2d
 
-    if args.resume is not None:
-        if os.path.isfile(args.resume):
+    start_iter = 0
+    if cfg['training']['resume'] is not None:
+        if os.path.isfile(cfg['training']['resume']):
             print(
-                "Loading model and optimizer from checkpoint '{}'".format(args.resume)
+                "Loading model and optimizer from checkpoint '{}'".format(cfg['training']['resume'])
             )
-            checkpoint = torch.load(args.resume)
+            checkpoint = torch.load(cfg['training']['resume'])
             model.load_state_dict(checkpoint["model_state"])
             optimizer.load_state_dict(checkpoint["optimizer_state"])
+            start_iter = checkpoint["epoch"]
             print(
-                "Loaded checkpoint '{}' (epoch {})".format(
-                    args.resume, checkpoint["epoch"]
+                "Loaded checkpoint '{}' (iter {})".format(
+                    cfg['training']['resume'], checkpoint["epoch"]
                 )
             )
         else:
-            print("No checkpoint found at '{}'".format(args.resume))
+            print("No checkpoint found at '{}'".format(cfg['training']['resume']))
 
     best_iou = -100.0
-    for epoch in range(args.n_epoch):
-        model.train()
-        for i, (images, labels) in enumerate(trainloader):
+    i = start_iter
+    while i <= cfg['training']['train_iters']:
+        for (images, labels) in trainloader:
+            i += 1
+            model.train()
             images = images.to(device)
             labels = labels.to(device)
 
@@ -119,7 +125,7 @@ def train(args):
             loss.backward()
             optimizer.step()
 
-            if args.visdom:
+            if cfg['training']['visdom']:
                 vis.line(
                     X=torch.ones((1, 1)).cpu() * i,
                     Y=torch.Tensor([loss.data[0]]).unsqueeze(0).cpu(),
@@ -127,114 +133,51 @@ def train(args):
                     update="append",
                 )
 
-            if (i + 1) % 20 == 0:
+            if (i + 1) % cfg['training']['print_interval'] == 0:
                 print(
-                    "Epoch [%d/%d] Loss: %.4f" % (epoch + 1, args.n_epoch, loss.item())
+                    "Iter [%d/%d] Loss: %.4f" % (i + 1, cfg['training']['train_iters'], loss.item())
                 )
 
-        model.eval()
-        for i_val, (images_val, labels_val) in tqdm(enumerate(valloader)):
-            images_val = images_val.to(device)
-            labels_val = labels_val.to(device)
+            if (i + 1) % cfg['training']['val_interval'] == 0:
+                model.eval()
+                for i_val, (images_val, labels_val) in tqdm(enumerate(valloader)):
+                    images_val = images_val.to(device)
+                    labels_val = labels_val.to(device)
 
-            outputs = model(images_val)
-            pred = outputs.data.max(1)[1].cpu().numpy()
-            gt = labels_val.data.cpu().numpy()
-            running_metrics.update(gt, pred)
+                    outputs = model(images_val)
+                    pred = outputs.data.max(1)[1].cpu().numpy()
+                    gt = labels_val.data.cpu().numpy()
+                    running_metrics_val.update(gt, pred)
 
-        score, class_iou = running_metrics.get_scores()
-        for k, v in score.items():
-            print(k, v)
-        running_metrics.reset()
+                score, class_iou = running_metrics_val.get_scores()
+                for k, v in score.items():
+                    print(k, v)
+                running_metrics_val.reset()
 
-        if score["Mean IoU : \t"] >= best_iou:
-            best_iou = score["Mean IoU : \t"]
-            state = {
-                "epoch": epoch + 1,
-                "model_state": model.state_dict(),
-                "optimizer_state": optimizer.state_dict(),
-            }
-            torch.save(state, "{}_{}_best_model.pkl".format(args.arch, args.dataset))
+                if score["Mean IoU : \t"] >= best_iou:
+                    best_iou = score["Mean IoU : \t"]
+                    state = {
+                        "epoch": i + 1,
+                        "model_state": model.state_dict(),
+                        "optimizer_state": optimizer.state_dict(),
+                    }
+                    torch.save(state, "{}_{}_best_model.pkl".format(cfg['model']['arch'],
+                                                                    cfg['data']['dataset']))
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Hyperparams")
+    parser = argparse.ArgumentParser(description="config")
     parser.add_argument(
-        "--arch",
+        "--config",
         nargs="?",
         type=str,
-        default="fcn8s",
-        help="Architecture to use ['fcn8s, unet, segnet etc']",
+        default="configs/fcn8s_pascal.yml",
+        help="Configuration file to use"
     )
-    parser.add_argument(
-        "--dataset",
-        nargs="?",
-        type=str,
-        default="pascal",
-        help="Dataset to use ['pascal, camvid, ade20k etc']",
-    )
-    parser.add_argument(
-        "--img_rows", nargs="?", type=int, default=256, help="Height of the input image"
-    )
-    parser.add_argument(
-        "--img_cols", nargs="?", type=int, default=256, help="Width of the input image"
-    )
-
-    parser.add_argument(
-        "--img_norm",
-        dest="img_norm",
-        action="store_true",
-        help="Enable input image scales normalization [0, 1] |\
-                              True by default",
-    )
-    parser.add_argument(
-        "--no-img_norm",
-        dest="img_norm",
-        action="store_false",
-        help="Disable input image scales normalization [0, 1] |\
-                              True by default",
-    )
-    parser.set_defaults(img_norm=True)
-
-    parser.add_argument(
-        "--n_epoch", nargs="?", type=int, default=100, help="# of the epochs"
-    )
-    parser.add_argument(
-        "--batch_size", nargs="?", type=int, default=1, help="Batch Size"
-    )
-    parser.add_argument(
-        "--l_rate", nargs="?", type=float, default=1e-5, help="Learning Rate"
-    )
-    parser.add_argument(
-        "--feature_scale",
-        nargs="?",
-        type=int,
-        default=1,
-        help="Divider for # of features to use",
-    )
-    parser.add_argument(
-        "--resume",
-        nargs="?",
-        type=str,
-        default=None,
-        help="Path to previous saved model to restart from",
-    )
-
-    parser.add_argument(
-        "--visdom",
-        dest="visdom",
-        action="store_true",
-        help="Enable visualization(s) on visdom |\
-                              False by default",
-    )
-    parser.add_argument(
-        "--no-visdom",
-        dest="visdom",
-        action="store_false",
-        help="Disable visualization(s) on visdom |\
-                              False by default",
-    )
-    parser.set_defaults(visdom=False)
 
     args = parser.parse_args()
-    train(args)
+
+    with open(args.config) as fp:
+        cfg = yaml.load(fp)
+
+    train(cfg)

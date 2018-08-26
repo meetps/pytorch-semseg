@@ -1,4 +1,6 @@
-import sys, os
+import os
+import sys
+import yaml
 import torch
 import visdom
 import argparse
@@ -24,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 cudnn.benchmark = True
 
 
-def validate(args):
+def validate(cfg, args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,21 +34,26 @@ def validate(args):
     model_name = model_file_name[: model_file_name.find("_")]
 
     # Setup Dataloader
-    data_loader = get_loader(args.dataset)
-    data_path = get_data_path(args.dataset)
+    data_loader = get_loader(cfg['data']['dataset'])
+    data_path = get_data_path(cfg['data']['dataset'])
+
     loader = data_loader(
         data_path,
-        split=args.split,
+        split=cfg['data']['val_split'],
         is_transform=True,
-        img_size=(args.img_rows, args.img_cols),
-        img_norm=args.img_norm,
+        img_size=(cfg['data']['img_rows'], 
+                  cfg['data']['img_rows']),
     )
+
     n_classes = loader.n_classes
-    valloader = data.DataLoader(loader, batch_size=args.batch_size, num_workers=4)
+
+    valloader = data.DataLoader(loader, 
+                                batch_size=cfg['training']['batch_size'], 
+                                num_workers=8)
     running_metrics = runningScore(n_classes)
 
     # Setup Model
-    model = get_model(model_name, n_classes, version=args.dataset)
+    model = get_model(model_name, n_classes, version=cfg['data']['dataset'])
     state = convert_state_dict(torch.load(args.model_path)["model_state"])
     model.load_state_dict(state)
     model.eval()
@@ -97,42 +104,19 @@ def validate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Hyperparams")
     parser.add_argument(
+        "--config",
+        nargs="?",
+        type=str,
+        default="configs/fcn8s_pascal.yml",
+        help="Config file to be used",
+    )
+    parser.add_argument(
         "--model_path",
         nargs="?",
         type=str,
         default="fcn8s_pascal_1_26.pkl",
         help="Path to the saved model",
     )
-    parser.add_argument(
-        "--dataset",
-        nargs="?",
-        type=str,
-        default="pascal",
-        help="Dataset to use ['pascal, camvid, ade20k etc']",
-    )
-    parser.add_argument(
-        "--img_rows", nargs="?", type=int, default=256, help="Height of the input image"
-    )
-    parser.add_argument(
-        "--img_cols", nargs="?", type=int, default=256, help="Width of the input image"
-    )
-
-    parser.add_argument(
-        "--img_norm",
-        dest="img_norm",
-        action="store_true",
-        help="Enable input image scales normalization [0, 1] |\
-                              True by default",
-    )
-    parser.add_argument(
-        "--no-img_norm",
-        dest="img_norm",
-        action="store_false",
-        help="Disable input image scales normalization [0, 1] |\
-                              True by default",
-    )
-    parser.set_defaults(img_norm=True)
-
     parser.add_argument(
         "--eval_flip",
         dest="eval_flip",
@@ -148,17 +132,6 @@ if __name__ == "__main__":
                               True by default",
     )
     parser.set_defaults(eval_flip=True)
-
-    parser.add_argument(
-        "--batch_size", nargs="?", type=int, default=1, help="Batch Size"
-    )
-    parser.add_argument(
-        "--split",
-        nargs="?",
-        type=str,
-        default="val",
-        help="Split of dataset to test on",
-    )
 
     parser.add_argument(
         "--measure_time",
@@ -177,4 +150,8 @@ if __name__ == "__main__":
     parser.set_defaults(measure_time=True)
 
     args = parser.parse_args()
-    validate(args)
+
+    with open(args.config) as fp:
+        cfg = yaml.load(fp)
+
+    validate(cfg, args)
