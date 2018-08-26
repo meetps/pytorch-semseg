@@ -8,6 +8,9 @@ __pycache__/
 *.pth
 current_train.py
 video_test*.py
+*.swp
+data
+ckpt
 
 # C extensions
 *.so
