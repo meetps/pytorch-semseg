@@ -1,5 +1,10 @@
+import functools
+
 import torch.nn as nn
 import torch.nn.functional as F
+
+from ptsemseg.models.utils import get_upsampling_weight
+from ptsemseg.loss import cross_entropy2d
 
 # FCN32s
 class fcn32s(nn.Module):
@@ -7,6 +12,8 @@ class fcn32s(nn.Module):
         super(fcn32s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
+        self.loss = functools.partial(cross_entropy2d,
+                                      size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -64,11 +71,9 @@ class fcn32s(nn.Module):
             nn.Conv2d(4096, self.n_classes, 1),
         )
 
-        # TODO: Add support for learned upsampling
         if self.learned_billinear:
             raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
+
 
     def forward(self, x):
         conv1 = self.conv_block1(x)
@@ -98,7 +103,6 @@ class fcn32s(nn.Module):
         for idx, conv_block in enumerate(blocks):
             for l1, l2 in zip(features[ranges[idx][0] : ranges[idx][1]], conv_block):
                 if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    # print(idx, l1, l2)
                     assert l1.weight.size() == l2.weight.size()
                     assert l1.bias.size() == l2.bias.size()
                     l2.weight.data = l1.weight.data
@@ -106,7 +110,6 @@ class fcn32s(nn.Module):
         for i1, i2 in zip([0, 3], [0, 3]):
             l1 = vgg16.classifier[i1]
             l2 = self.classifier[i2]
-            # print(type(l1), dir(l1))
             l2.weight.data = l1.weight.data.view(l2.weight.size())
             l2.bias.data = l1.bias.data.view(l2.bias.size())
         n_class = self.classifier[6].weight.size()[0]
@@ -122,6 +125,8 @@ class fcn16s(nn.Module):
         super(fcn16s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
+        self.loss = functools.partial(cross_entropy2d,
+                                      size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -184,8 +189,7 @@ class fcn16s(nn.Module):
         # TODO: Add support for learned upsampling
         if self.learned_billinear:
             raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
+
 
     def forward(self, x):
         conv1 = self.conv_block1(x)
@@ -238,10 +242,12 @@ class fcn16s(nn.Module):
 
 # FCN 8s
 class fcn8s(nn.Module):
-    def __init__(self, n_classes=21, learned_billinear=False):
+    def __init__(self, n_classes=21, learned_billinear=True):
         super(fcn8s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
+        self.loss = functools.partial(cross_entropy2d,
+                                      size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -302,11 +308,20 @@ class fcn8s(nn.Module):
         self.score_pool4 = nn.Conv2d(512, self.n_classes, 1)
         self.score_pool3 = nn.Conv2d(256, self.n_classes, 1)
 
-        # TODO: Add support for learned upsampling
         if self.learned_billinear:
-            raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
+            self.upscore2 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 4,
+                                               stride=2, bias=False)
+            self.upscore4 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 4,
+                                               stride=2, bias=False)
+            self.upscore8 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 16,
+                                               stride=8, bias=False)
+
+        for m in self.modules():
+            if isinstance(m, nn.ConvTranspose2d):
+                m.weight.data.copy_(get_upsampling_weight(m.in_channels, 
+                                                          m.out_channels, 
+                                                          m.kernel_size[0]))
+
 
     def forward(self, x):
         conv1 = self.conv_block1(x)
@@ -316,14 +331,29 @@ class fcn8s(nn.Module):
         conv5 = self.conv_block5(conv4)
 
         score = self.classifier(conv5)
-        score_pool4 = self.score_pool4(conv4)
-        score_pool3 = self.score_pool3(conv3)
 
-        score = F.upsample_bilinear(score, score_pool4.size()[2:])
-        score += score_pool4
-        score = F.upsample_bilinear(score, score_pool3.size()[2:])
-        score += score_pool3
-        out = F.upsample_bilinear(score, x.size()[2:])
+        if self.learned_billinear:
+            upscore2 = self.upscore2(score)
+            score_pool4c = self.score_pool4(conv4)[:, :, 5:5+upscore2.size()[2],
+                                                         5:5+upscore2.size()[3]]
+            upscore_pool4 = self.upscore4(upscore2 + score_pool4c)
+            
+            score_pool3c = self.score_pool3(conv3)[:, :, 9:9+upscore_pool4.size()[2],
+                                                         9:9+upscore_pool4.size()[3]]
+
+            out = self.upscore8(score_pool3c + upscore_pool4)[:, :, 31:31+x.size()[2],
+                                                                    31:31+x.size()[3]]
+            return out.contiguous()
+                                                         
+
+        else:
+            score_pool4 = self.score_pool4(conv4)
+            score_pool3 = self.score_pool3(conv3)
+            score = F.upsample_bilinear(score, score_pool4.size()[2:])
+            score += score_pool4
+            score = F.upsample_bilinear(score, score_pool3.size()[2:])
+            score += score_pool3
+            out = F.upsample_bilinear(score, x.size()[2:])
 
         return out
 
