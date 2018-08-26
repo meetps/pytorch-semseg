@@ -11,12 +11,21 @@ from PIL import Image, ImageOps
 class Compose(object):
     def __init__(self, augmentations):
         self.augmentations = augmentations
+        self.PIL2Numpy = False
 
     def __call__(self, img, mask):
-        img, mask = img, mask
+        if isinstance(img, np.ndarray):
+            img = Image.fromarray(img, mode="RGB")
+            mask = Image.fromarray(mask, mode="L")
+            self.PIL2Numpy = True
+
         assert img.size == mask.size
         for a in self.augmentations:
             img, mask = a(img, mask)
+
+        if self.PIL2Numpy:
+            img, mask = np.array(img), np.array(mask, dtype=np.uint8) 
+
         return img, mask
 
 
