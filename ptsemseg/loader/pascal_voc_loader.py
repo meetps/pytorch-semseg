@@ -9,8 +9,10 @@ import scipy.io as io
 import matplotlib.pyplot as plt
 import glob
 
+from PIL import Image
 from tqdm import tqdm
 from torch.utils import data
+from torchvision import transforms
 
 
 def get_data_path(name):
@@ -79,6 +81,9 @@ class pascalVOCLoader(data.Dataset):
             file_list = [id_.rstrip() for id_ in file_list]
             self.files[split] = file_list
         self.setup_annotations()
+        self.tf = transforms.Compose([transforms.ToTensor(),
+                                      transforms.Normalize([0.485, 0.456, 0.406], 
+                                                           [0.229, 0.224, 0.225])])
 
     def __len__(self):
         return len(self.files[self.split])
@@ -87,10 +92,8 @@ class pascalVOCLoader(data.Dataset):
         im_name = self.files[self.split][index]
         im_path = pjoin(self.root, "JPEGImages", im_name + ".jpg")
         lbl_path = pjoin(self.root, "SegmentationClass/pre_encoded", im_name + ".png")
-        im = m.imread(im_path)
-        im = np.array(im, dtype=np.uint8)
-        lbl = m.imread(lbl_path)
-        lbl = np.array(lbl, dtype=np.int8)
+        im = Image.open(im_path)
+        lbl = Image.open(lbl_path)
         if self.augmentations is not None:
             im, lbl = self.augmentations(im, lbl)
         if self.is_transform:
@@ -98,25 +101,11 @@ class pascalVOCLoader(data.Dataset):
         return im, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
-        img = img[:, :, ::-1]  # RGB -> BGR
-        img = img.astype(np.float64)
-        img -= self.mean
-        if self.img_norm:
-            # Resize scales images from 0 to 255, thus we need
-            # to divide by 255.0
-            img = img.astype(float) / 255.0
-        # NHWC -> NCHW
-        img = img.transpose(2, 0, 1)
-
+        img = img.resize((self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
+        lbl = lbl.resize((self.img_size[0], self.img_size[1]))
+        img = self.tf(img)
+        lbl = torch.from_numpy(np.array(lbl)).long()
         lbl[lbl == 255] = 0
-        lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
-        lbl = lbl.astype(int)
-        img = torch.from_numpy(img).float()
-        lbl = torch.from_numpy(lbl).long()
         return img, lbl
 
     def get_pascal_labels(self):

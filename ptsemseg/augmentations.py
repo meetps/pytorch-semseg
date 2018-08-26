@@ -13,11 +13,11 @@ class Compose(object):
         self.augmentations = augmentations
 
     def __call__(self, img, mask):
-        img, mask = Image.fromarray(img, mode="RGB"), Image.fromarray(mask, mode="L")
+        img, mask = img, mask
         assert img.size == mask.size
         for a in self.augmentations:
             img, mask = a(img, mask)
-        return np.array(img), np.array(mask, dtype=np.uint8)
+        return img, mask
 
 
 class RandomCrop(object):
