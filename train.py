@@ -76,7 +76,7 @@ def train(cfg):
 
     # Check if model has custom optimizer / loss
     if hasattr(model.module, "optimizer"):
-        print("Using custom loss")
+        print("Using custom optimizer")
         optimizer = model.module.optimizer(
                 model.parameters(), **cfg['training']['optimizer'])
     else:
