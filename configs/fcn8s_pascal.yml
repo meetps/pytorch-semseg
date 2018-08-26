@@ -1,0 +1,20 @@
+model:
+    arch: fcn8s
+data:
+    dataset: pascal
+    train_split: train_aug
+    val_split: val
+    img_rows: 256
+    img_cols: 256
+    path: /private/home/meetshah/misc_code/ps/data/VOCdevkit/VOC2012/
+training:
+    train_iters: 300000
+    batch_size: 1
+    val_interval: 1000
+    print_interval: 50
+    l_rate: 1.0e-10
+    l_schedule:
+    momentum: 0.99
+    weight_decay: 0.0005
+    resume: fcn8s_pascal_best_model.pkl
+    visdom: False
