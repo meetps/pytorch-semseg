@@ -10,9 +10,9 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
 
     # Handle inconsistent size between input and target
     if h > ht and w > wt:  # upsample labels
-        target = target.unsequeeze(1)
+        target = target.unsqueeze(1)
         target = F.upsample(target, size=(h, w), mode="nearest")
-        target = target.sequeeze(1)
+        target = target.squeeze(1)
     elif h < ht and w < wt:  # upsample images
         input = F.upsample(input, size=(ht, wt), mode="bilinear")
     elif h != ht and w != wt:
@@ -73,6 +73,8 @@ def multi_scale_cross_entropy2d(
         n_inp = len(input)
         scale = 0.4
         scale_weight = torch.pow(scale * torch.ones(n_inp), torch.arange(n_inp))
+        if input.is_cuda:
+            scale_weight = scale_weight.cuda()
 
     loss = 0.0
     for i, inp in enumerate(input):
