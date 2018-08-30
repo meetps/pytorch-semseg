@@ -10,7 +10,7 @@ from ptsemseg.models.utils import *
 from ptsemseg.loss import *
 
 pspnet_specs = {
-    "pascalvoc": {
+    "pascal": {
         "n_classes": 21,
         "input_size": (473, 473),
         "block_config": [3, 4, 23, 3],
@@ -90,7 +90,7 @@ class pspnet(nn.Module):
 
         # Final conv layers
         self.cbr_final = conv2DBatchNormRelu(4096, 512, 3, 1, 1, False)
-        self.dropout = nn.Dropout2d(p=0.1, inplace=True)
+        self.dropout = nn.Dropout2d(p=0.1, inplace=False)
         self.classification = nn.Conv2d(512, self.n_classes, 1, 1, 0)
 
         # Auxiliary layers for training
