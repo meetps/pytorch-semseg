@@ -22,7 +22,6 @@ class ADE20KLoader(data.Dataset):
         img_norm=True,
     ):
         self.root = root
-        self.split = split
         self.is_transform = is_transform
         self.augmentations = augmentations
         self.img_norm = img_norm
@@ -33,9 +32,12 @@ class ADE20KLoader(data.Dataset):
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
 
+        split_map = {"training": "training", "val": "validation"}
+        self.split = split_map[split]
+
         for split in ["training", "validation"]:
             file_list = recursive_glob(
-                rootdir=self.root + "images/" + self.split + "/", suffix=".jpg"
+                rootdir=self.root + "images/" + split + "/", suffix=".jpg"
             )
             self.files[split] = file_list
 
@@ -46,11 +48,13 @@ class ADE20KLoader(data.Dataset):
         img_path = self.files[self.split][index].rstrip()
         lbl_path = img_path[:-4] + "_seg.png"
 
-        img = m.imread(img_path)
+        img = m.imread(img_path, mode='RGB')
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.int32)
+
+        lbl = self.encode_segmap(lbl)
 
         if self.augmentations is not None:
             img, lbl = self.augmentations(img, lbl)
@@ -74,12 +78,16 @@ class ADE20KLoader(data.Dataset):
         # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
 
-        lbl = self.encode_segmap(lbl)
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
         lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
         lbl = lbl.astype(int)
-        assert np.all(classes == np.unique(lbl))
+
+        if not np.all(classes == np.unique(lbl)):
+            print("WARN: resizing labels yielded fewer classes")
+
+        if not np.all(np.unique(lbl) < self.n_classes):
+            raise ValueError("Segmentation map contained invalid class values")
 
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
