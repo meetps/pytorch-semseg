@@ -9,6 +9,7 @@ from ptsemseg.loader.mit_sceneparsing_benchmark_loader import (
 from ptsemseg.loader.cityscapes_loader import cityscapesLoader
 from ptsemseg.loader.nyuv2_loader import NYUv2Loader
 from ptsemseg.loader.sunrgbd_loader import SUNRGBDLoader
+from ptsemseg.loader.mapillary_vistas_loader import mapillaryVistasLoader
 
 
 def get_loader(name):
@@ -24,6 +25,7 @@ def get_loader(name):
         "cityscapes": cityscapesLoader,
         "nyuv2": NYUv2Loader,
         "sunrgbd": SUNRGBDLoader,
+        "vistas": mapillaryVistasLoader,
     }[name]
 
 

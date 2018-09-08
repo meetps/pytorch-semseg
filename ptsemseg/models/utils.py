@@ -20,27 +20,13 @@ class conv2DBatchNorm(nn.Module):
     ):
         super(conv2DBatchNorm, self).__init__()
 
-        if dilation > 1:
-            conv_mod = nn.Conv2d(
-                int(in_channels),
-                int(n_filters),
-                kernel_size=k_size,
-                padding=padding,
-                stride=stride,
-                bias=bias,
-                dilation=dilation,
-            )
-
-        else:
-            conv_mod = nn.Conv2d(
-                int(in_channels),
-                int(n_filters),
-                kernel_size=k_size,
-                padding=padding,
-                stride=stride,
-                bias=bias,
-                dilation=1,
-            )
+        conv_mod = nn.Conv2d(int(in_channels),
+                             int(n_filters),
+                             kernel_size=k_size,
+                             padding=padding,
+                             stride=stride,
+                             bias=bias,
+                             dilation=dilation,)
 
         if with_bn:
             self.cb_unit = nn.Sequential(conv_mod, nn.BatchNorm2d(int(n_filters)))
@@ -49,6 +35,36 @@ class conv2DBatchNorm(nn.Module):
 
     def forward(self, inputs):
         outputs = self.cb_unit(inputs)
+        return outputs
+
+
+class conv2DGroupNorm(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        n_filters,
+        k_size,
+        stride,
+        padding,
+        bias=True,
+        dilation=1,
+        n_groups=16,
+    ):
+        super(conv2DGroupNorm, self).__init__()
+
+        conv_mod = nn.Conv2d(int(in_channels),
+                             int(n_filters),
+                             kernel_size=k_size,
+                             padding=padding,
+                             stride=stride,
+                             bias=bias,
+                             dilation=dilation,)
+
+        self.cg_unit = nn.Sequential(conv_mod, 
+                                     nn.GroupNorm(n_groups, int(n_filters)))
+
+    def forward(self, inputs):
+        outputs = self.cg_unit(inputs)
         return outputs
 
 
@@ -87,38 +103,56 @@ class conv2DBatchNormRelu(nn.Module):
     ):
         super(conv2DBatchNormRelu, self).__init__()
 
-        if dilation > 1:
-            conv_mod = nn.Conv2d(
-                int(in_channels),
-                int(n_filters),
-                kernel_size=k_size,
-                padding=padding,
-                stride=stride,
-                bias=bias,
-                dilation=dilation,
-            )
-
-        else:
-            conv_mod = nn.Conv2d(
-                int(in_channels),
-                int(n_filters),
-                kernel_size=k_size,
-                padding=padding,
-                stride=stride,
-                bias=bias,
-                dilation=1,
-            )
+        conv_mod = nn.Conv2d(int(in_channels),
+                             int(n_filters),
+                             kernel_size=k_size,
+                             padding=padding,
+                             stride=stride,
+                             bias=bias,
+                             dilation=dilation,)
 
         if with_bn:
-            self.cbr_unit = nn.Sequential(
-                conv_mod, nn.BatchNorm2d(int(n_filters)), nn.ReLU(inplace=True)
-            )
+            self.cbr_unit = nn.Sequential(conv_mod, 
+                                          nn.BatchNorm2d(int(n_filters)), 
+                                          nn.ReLU(inplace=True))
         else:
             self.cbr_unit = nn.Sequential(conv_mod, nn.ReLU(inplace=True))
 
     def forward(self, inputs):
         outputs = self.cbr_unit(inputs)
         return outputs
+
+
+class conv2DGroupNormRelu(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        n_filters,
+        k_size,
+        stride,
+        padding,
+        bias=True,
+        dilation=1,
+        n_groups=16,
+    ):
+        super(conv2DGroupNormRelu, self).__init__()
+
+        conv_mod = nn.Conv2d(int(in_channels),
+                             int(n_filters),
+                             kernel_size=k_size,
+                             padding=padding,
+                             stride=stride,
+                             bias=bias,
+                             dilation=dilation,)
+
+        self.cgr_unit = nn.Sequential(conv_mod, 
+                                      nn.GroupNorm(n_groups, int(n_filters)), 
+                                      nn.ReLU(inplace=True))
+
+    def forward(self, inputs):
+        outputs = self.cgr_unit(inputs)
+        return outputs
+
 
 
 class deconv2DBatchNormRelu(nn.Module):
@@ -340,18 +374,38 @@ class FRRU(nn.Module):
     Full Resolution Residual Unit for FRRN
     """
 
-    def __init__(self, prev_channels, out_channels, scale):
+    def __init__(self, 
+                 prev_channels, 
+                 out_channels, 
+                 scale, 
+                 group_norm=False,
+                 n_groups=None):
         super(FRRU, self).__init__()
         self.scale = scale
         self.prev_channels = prev_channels
         self.out_channels = out_channels
+        self.group_norm = group_norm
+        self.n_groups = n_groups
 
-        self.conv1 = conv2DBatchNormRelu(
-            prev_channels + 32, out_channels, k_size=3, stride=1, padding=1
-        )
-        self.conv2 = conv2DBatchNormRelu(
-            out_channels, out_channels, k_size=3, stride=1, padding=1
-        )
+
+        if self.group_norm:
+            conv_unit = conv2DGroupNormRelu
+            self.conv1 = conv_unit(
+                prev_channels + 32, out_channels, k_size=3, 
+                stride=1, padding=1, bias=False, n_groups=self.n_groups
+            )
+            self.conv2 = conv_unit(
+                out_channels, out_channels, k_size=3, 
+                stride=1, padding=1, bias=False, n_groups=self.n_groups
+            )
+
+        else:
+            conv_unit = conv2DBatchNormRelu
+            self.conv1 = conv_unit(prev_channels + 32, out_channels, k_size=3, 
+                                   stride=1, padding=1, bias=False,)
+            self.conv2 = conv_unit(out_channels, out_channels, k_size=3, 
+                                   stride=1, padding=1, bias=False,)
+
         self.conv_res = nn.Conv2d(out_channels, 32, kernel_size=1, stride=1, padding=0)
 
     def forward(self, y, z):
@@ -372,15 +426,29 @@ class RU(nn.Module):
     Residual Unit for FRRN
     """
 
-    def __init__(self, channels, kernel_size=3, strides=1):
+    def __init__(self, 
+                 channels, 
+                 kernel_size=3, 
+                 strides=1, 
+                 group_norm=False,
+                 n_groups=None):
         super(RU, self).__init__()
+        self.group_norm = group_norm
+        self.n_groups = n_groups
 
-        self.conv1 = conv2DBatchNormRelu(
-            channels, channels, k_size=kernel_size, stride=strides, padding=1
-        )
-        self.conv2 = conv2DBatchNorm(
-            channels, channels, k_size=kernel_size, stride=strides, padding=1
-        )
+        if self.group_norm:
+            self.conv1 = conv2DGroupNormRelu(
+               channels, channels, k_size=kernel_size, 
+               stride=strides, padding=1, bias=False,n_groups=self.n_groups)
+            self.conv2 = conv2DGroupNorm(
+                channels, channels, k_size=kernel_size, 
+                stride=strides, padding=1, bias=False,n_groups=self.n_groups)
+
+        else:
+            self.conv1 = conv2DBatchNormRelu(
+               channels, channels, k_size=kernel_size, stride=strides, padding=1, bias=False,)
+            self.conv2 = conv2DBatchNorm(
+                channels, channels, k_size=kernel_size, stride=strides, padding=1, bias=False,)
 
     def forward(self, x):
         incoming = x

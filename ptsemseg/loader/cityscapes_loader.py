@@ -47,7 +47,7 @@ class cityscapesLoader(data.Dataset):
 
     mean_rgb = {
         "pascal": [103.939, 116.779, 123.68],
-        "cityscapes": [73.15835921, 82.90891754, 72.39239876],
+        "cityscapes": [0.0, 0.0, 0.0],
     }  # pascal mean for PSPNet and ICNet pre-trained model
 
     def __init__(
@@ -58,7 +58,7 @@ class cityscapesLoader(data.Dataset):
         img_size=(512, 1024),
         augmentations=None,
         img_norm=True,
-        version="pascal",
+        version="cityscapes",
     ):
         """__init__
 
@@ -236,14 +236,15 @@ if __name__ == "__main__":
     import torchvision
     import matplotlib.pyplot as plt
 
-    augmentations = Compose([Scale(2048), RandomRotate(10), RandomHorizontallyFlip()])
+    augmentations = Compose([Scale(2048), RandomRotate(10), RandomHorizontallyFlip(0.5)])
 
-    local_path = "/home/meetshah1995/datasets/cityscapes/"
+    local_path = "/datasets01/cityscapes/112817/"
     dst = cityscapesLoader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)
     for i, data in enumerate(trainloader):
         imgs, labels = data
+        import pdb;pdb.set_trace()
         imgs = imgs.numpy()[:, ::-1, :, :]
         imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)

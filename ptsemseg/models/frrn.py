@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import functools
@@ -8,11 +9,11 @@ from ptsemseg.loss import bootstrapped_cross_entropy2d
 frrn_specs_dic = {
     "A": {
         "encoder": [[3, 96, 2], [4, 192, 4], [2, 384, 8], [2, 384, 16]],
-        "decoder": [[2, 192, 8], [2, 192, 4], [2, 96, 2]],
+        "decoder": [[2, 192, 8], [2, 192, 4], [2, 48, 2]],
     },
     "B": {
         "encoder": [[3, 96, 2], [4, 192, 4], [2, 384, 8], [2, 384, 16], [2, 384, 32]],
-        "decoder": [[2, 192, 16], [2, 192, 8], [2, 192, 4], [2, 96, 2]],
+        "decoder": [[2, 192, 16], [2, 192, 8], [2, 192, 4], [2, 48, 2]],
     },
 }
 
@@ -27,26 +28,41 @@ class frrn(nn.Module):
     2) TF implementation by @kiwonjoon: https://github.com/hiwonjoon/tf-frrn
     """
 
-    def __init__(self, n_classes=21, model_type=None):
+    def __init__(self, 
+                 n_classes=21, 
+                 model_type=None, 
+                 group_norm=False,
+                 n_groups=16):
         super(frrn, self).__init__()
         self.n_classes = n_classes
         self.model_type = model_type
-        self.K = 64 * 512
-        self.loss = functools.partial(bootstrapped_cross_entropy2d, K=self.K)
+        self.group_norm = group_norm
+        self.n_groups = n_groups
 
-        self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
+        if self.group_norm: 
+            self.conv1 = conv2DGroupNormRelu(3, 48, 5, 1, 2)
+        else:
+            self.conv1 = conv2DBatchNormRelu(3, 48, 5, 1, 2)
 
         self.up_residual_units = []
         self.down_residual_units = []
         for i in range(3):
-            self.up_residual_units.append(RU(channels=48, kernel_size=3, strides=1))
-            self.down_residual_units.append(RU(channels=48, kernel_size=3, strides=1))
+            self.up_residual_units.append(RU(channels=48, 
+                                             kernel_size=3, 
+                                             strides=1,
+                                             group_norm=self.group_norm,
+                                             n_groups=self.n_groups))
+            self.down_residual_units.append(RU(channels=48, 
+                                               kernel_size=3, 
+                                               strides=1,
+                                               group_norm=self.group_norm,
+                                               n_groups=self.n_groups))
 
         self.up_residual_units = nn.ModuleList(self.up_residual_units)
         self.down_residual_units = nn.ModuleList(self.down_residual_units)
 
         self.split_conv = nn.Conv2d(
-            48, 32, kernel_size=1, padding=0, stride=1, bias=True
+            48, 32, kernel_size=1, padding=0, stride=1, bias=False
         )
 
         # each spec is as (n_blocks, channels, scale)
@@ -59,16 +75,12 @@ class frrn(nn.Module):
         self.encoding_frrus = {}
         for n_blocks, channels, scale in self.encoder_frru_specs:
             for block in range(n_blocks):
-                key = "_".join(
-                    map(str, ["encoding_frru", n_blocks, channels, scale, block])
-                )
-                setattr(
-                    self,
-                    key,
-                    FRRU(
-                        prev_channels=prev_channels, out_channels=channels, scale=scale
-                    ),
-                )
+                key = "_".join(map(str, ["encoding_frru", n_blocks, channels, scale, block]))
+                setattr(self, key, FRRU(prev_channels=prev_channels, 
+                                        out_channels=channels, 
+                                        scale=scale,
+                                        group_norm=self.group_norm,
+                                        n_groups=self.n_groups),)
             prev_channels = channels
 
         # decoding
@@ -76,20 +88,16 @@ class frrn(nn.Module):
         for n_blocks, channels, scale in self.decoder_frru_specs:
             # pass through decoding FRRUs
             for block in range(n_blocks):
-                key = "_".join(
-                    map(str, ["decoding_frru", n_blocks, channels, scale, block])
-                )
-                setattr(
-                    self,
-                    key,
-                    FRRU(
-                        prev_channels=prev_channels, out_channels=channels, scale=scale
-                    ),
-                )
+                key = "_".join(map(str, ["decoding_frru", n_blocks, channels, scale, block]))
+                setattr(self, key, FRRU(prev_channels=prev_channels, 
+                                        out_channels=channels, 
+                                        scale=scale,
+                                        group_norm=self.group_norm,
+                                        n_groups=self.n_groups),)
             prev_channels = channels
 
         self.merge_conv = nn.Conv2d(
-            prev_channels + 32, 48, kernel_size=1, padding=0, stride=1, bias=True
+            prev_channels + 32, 48, kernel_size=1, padding=0, stride=1, bias=False
         )
 
         self.classif_conv = nn.Conv2d(
@@ -126,7 +134,7 @@ class frrn(nn.Module):
         for n_blocks, channels, scale in self.decoder_frru_specs:
             # bilinear upsample smaller feature map
             upsample_size = torch.Size([_s * 2 for _s in y.size()[-2:]])
-            y_upsampled = F.upsample(y, size=upsample_size, mode="bilinear")
+            y_upsampled = F.upsample(y, size=upsample_size, mode="bilinear", align_corners=True)
             # pass through decoding FRRUs
             for block in range(n_blocks):
                 key = "_".join(
@@ -138,7 +146,7 @@ class frrn(nn.Module):
             prev_channels = channels
 
         # merge streams
-        x = torch.cat([F.upsample(y, scale_factor=2, mode="bilinear"), z], dim=1)
+        x = torch.cat([F.upsample(y, scale_factor=2, mode="bilinear", align_corners=True), z], dim=1)
         x = self.merge_conv(x)
 
         # pass through residual units

@@ -23,19 +23,14 @@ from ptsemseg.utils import convert_state_dict
 
 torch.backends.cudnn.benchmark = True
 
-cudnn.benchmark = True
-
 
 def validate(cfg, args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model_file_name = os.path.split(args.model_path)[1]
-    model_name = model_file_name[: model_file_name.find("_")]
-
     # Setup Dataloader
     data_loader = get_loader(cfg['data']['dataset'])
-    data_path = get_data_path(cfg['data']['dataset'])
+    data_path = cfg['data']['path']
 
     loader = data_loader(
         data_path,
@@ -53,7 +48,8 @@ def validate(cfg, args):
     running_metrics = runningScore(n_classes)
 
     # Setup Model
-    model = get_model(model_name, n_classes, version=cfg['data']['dataset'])
+
+    model = get_model(cfg['model'], n_classes).to(device)
     state = convert_state_dict(torch.load(args.model_path)["model_state"])
     model.load_state_dict(state)
     model.eval()
