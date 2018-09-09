@@ -4,6 +4,7 @@ import torchvision.models as models
 from ptsemseg.models.fcn import *
 from ptsemseg.models.segnet import *
 from ptsemseg.models.unet import *
+from ptsemseg.models.unet3d import *
 from ptsemseg.models.pspnet import *
 from ptsemseg.models.icnet import *
 from ptsemseg.models.linknet import *
@@ -31,6 +32,8 @@ def get_model(model_dict, n_classes, version=None):
 
     elif name == "unet":
         model = model(n_classes=n_classes, **param_dict)
+    elif name == "unet3d":
+        model = model(n_classes=n_classes, **param_dict)
 
     elif name == "pspnet":
         model = model(n_classes=n_classes, **param_dict)
@@ -54,6 +57,7 @@ def _get_model_instance(name):
             "fcn8s": fcn8s,
             "fcn16s": fcn16s,
             "unet": unet,
+            "unet3d": unet3d,
             "segnet": segnet,
             "pspnet": pspnet,
             "icnet": icnet,

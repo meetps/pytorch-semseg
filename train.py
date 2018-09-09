@@ -1,3 +1,8 @@
+DEBUG=True
+def log(s):
+    if DEBUG:
+        print(s)
+###################
 import os
 import sys
 import yaml
@@ -18,7 +23,7 @@ from tqdm import tqdm
 
 from ptsemseg.models import get_model
 from ptsemseg.loss import get_loss_function
-from ptsemseg.loader import get_loader 
+from ptsemseg.loader import get_loader
 from ptsemseg.utils import get_logger
 from ptsemseg.metrics import runningScore, averageMeter
 from ptsemseg.augmentations import get_composed_augmentations
@@ -207,7 +212,7 @@ if __name__ == "__main__":
         "--config",
         nargs="?",
         type=str,
-        default="configs/fcn8s_pascal.yml",
+        default="configs/miccai2008-anatomicalstructure.yml",
         help="Configuration file to use"
     )
 
@@ -220,7 +225,8 @@ if __name__ == "__main__":
     logdir = os.path.join('runs', os.path.basename(args.config)[:-4] , str(run_id))
     writer = SummaryWriter(log_dir=logdir)
 
-    print('RUNDIR: {}'.format(logdir))
+    print('RUNDIR: {}\n'.format(logdir),cfg,'\n#######')
+
     shutil.copy(args.config, logdir)
 
     logger = get_logger(logdir)

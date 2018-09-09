@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-
+from torch.nn.functional import upsample_bilinear as upsample_bilinear3d
 from torch.autograd import Variable
 
 
@@ -202,8 +202,6 @@ class unetConv2(nn.Module):
         outputs = self.conv1(inputs)
         outputs = self.conv2(outputs)
         return outputs
-
-
 class unetUp(nn.Module):
     def __init__(self, in_size, out_size, is_deconv):
         super(unetUp, self).__init__()
@@ -215,6 +213,49 @@ class unetUp(nn.Module):
 
     def forward(self, inputs1, inputs2):
         outputs2 = self.up(inputs2)
+        offset = outputs2.size()[2] - inputs1.size()[2]
+        padding = 2 * [offset // 2, offset // 2]
+        outputs1 = F.pad(inputs1, padding)
+        return self.conv(torch.cat([outputs1, outputs2], 1))
+
+class unetConv3d(nn.Module):
+    def __init__(self, in_size, out_size, is_batchnorm):
+        super(unetConv3d, self).__init__()
+
+        if is_batchnorm:
+            self.conv1 = nn.Sequential(
+                nn.Conv3d(in_size, out_size, 3, 1, 0),
+                nn.BatchNorm3d(out_size),
+                nn.ReLU(),
+            )
+            self.conv2 = nn.Sequential(
+                nn.Conv3d(out_size, out_size, 3, 1, 0),
+                nn.BatchNorm3d(out_size),
+                nn.ReLU(),
+            )
+        else:
+            self.conv1 = nn.Sequential(nn.Conv3d(in_size, out_size, 3, 1, 0), nn.ReLU())
+            self.conv2 = nn.Sequential(
+                nn.Conv3d(out_size, out_size, 3, 1, 0), nn.ReLU()
+            )
+
+    def forward(self, inputs):
+        outputs = self.conv1(inputs)
+        outputs = self.conv2(outputs)
+        return outputs
+
+class unetUp3d(nn.Module):
+    def __init__(self, in_size, out_size, is_deconv):
+        super(unetUp3d, self).__init__()
+        self.is_deconv = is_deconv
+        self.conv = unetConv3d(in_size, out_size, False)
+        if is_deconv:
+            self.up = nn.ConvTranspose3d(in_size, out_size, kernel_size=2, stride=2)
+    def forward(self, inputs1, inputs2):
+        if self.is_deconv:
+            outputs2 = self.up(inputs2)
+        else:
+            outputs2 = upsample_bilinear3d(inputs2, scale_factor=2)
         offset = outputs2.size()[2] - inputs1.size()[2]
         padding = 2 * [offset // 2, offset // 2]
         outputs1 = F.pad(inputs1, padding)

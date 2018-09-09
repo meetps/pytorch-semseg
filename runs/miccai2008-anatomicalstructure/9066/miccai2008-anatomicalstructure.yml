@@ -1,0 +1,25 @@
+model:
+    arch: unet3d
+data:
+    dataset: miccai2008
+    train_split: train
+    val_split: val
+    img_rows: 'same'
+    img_cols: 'same'
+    path: "/media/machine/Storage/Dataset/BrainLesion/MICCAI2008Split/train&val/"
+training:
+    train_iters: 300000
+    batch_size: 1
+    val_interval: 1000
+    n_workers: 1
+    print_interval: 50
+    optimizer:
+        name: 'sgd'
+        lr: 1.0e-10
+        weight_decay: 0.0005
+        momentum: 0.99
+    loss:
+        name: 'cross_entropy'
+        size_average: False
+    lr_schedule:
+    resume: unet_miccai2008AS_best_model.pkl
