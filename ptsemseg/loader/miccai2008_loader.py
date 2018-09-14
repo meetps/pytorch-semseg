@@ -51,13 +51,6 @@ class miccai2008Loader(data.Dataset):
                     print('-{}[{}]'.format(mod, len(self.files['val'][mod])),
                           [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.files['val'][mod]])
                 print('-annot[{}]'.format(len(self.anno_files['val'])), [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.anno_files['val']])
-            '''
-            print('#####')
-            print('Input  Shape pre-defined:({}, {}, {})'.format(self.patch_size, self.patch_size, self.patch_size))
-            print('Output Shape pre-defined:({}, {}, {})'.format(self.lbl_unet_outputs_size, self.lbl_unet_outputs_size,
-                                                                 self.lbl_unet_outputs_size))
-            print('#####')
-            '''
 
     def __init__(
         self,
@@ -84,36 +77,20 @@ class miccai2008Loader(data.Dataset):
         self.mods = ['T1', 'T2', 'FLAIR']
         self.split = split
         self.load_data()
-        self.anno_files[self.split] = self.anno_files[self.split][:2] ## DEBUG
-
+        self.anno_files[self.split] = self.anno_files[self.split]#[:2] ## DEBUG
     def __len__(self):
         return len(self.anno_files[self.split])
-
     def normalize(self, img):
         return (img - img.min()) / (img.max() - img.min())
-
-    def detect_valid_area(self, img, loc_x, loc_y, loc_z):
-        def update_loc(loc, curr):
-            return [min(loc[0], curr[0]), max(loc[1], curr[1])]
-        def find_start_end(vector):
-            start_idx, end_idx = 0, len(vector)
-            while vector[start_idx]:
-                start_idx += 1
-            while vector[end_idx - 1]:
-                end_idx -= 1
-            return [start_idx, end_idx]
-
-        loc_x = update_loc(loc_x, find_start_end(np.sum(img, (1, 2)) == 0))
-        loc_y = update_loc(loc_y, find_start_end(np.sum(img, (0, 2)) == 0))
-        loc_z = update_loc(loc_z, find_start_end(np.sum(img, (0, 1)) == 0))
-        return loc_x, loc_y, loc_z
     def randomCrop3D(self, img, lbl):
-        x = random.randint(0, img.shape[0] - self.patch_size)
-        y = random.randint(0, img.shape[1] - self.patch_size)
-        z = random.randint(0, img.shape[2] - self.patch_size)
-        img = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
-        lbl = lbl[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size]
-        return img, lbl
+        while True:
+            x = random.randint(0, img.shape[0] - self.patch_size)
+            y = random.randint(0, img.shape[1] - self.patch_size)
+            z = random.randint(0, img.shape[2] - self.patch_size)
+            lbl_cropped = lbl[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size]
+            if lbl_cropped.sum() > 0:
+                img_cropped = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
+                return img_cropped, lbl_cropped
     def __getitem__(self, index):
         st = time.time()
         img_path = {mod : self.files[self.split][mod][index] for mod in self.mods}
@@ -121,30 +98,17 @@ class miccai2008Loader(data.Dataset):
         case_idx = lbl_path.split('/')[-1].split('_lesion')[0]
         # load 4d tensor and lbl
         imgs = []
-        #loc_x, loc_y, loc_z = [512, 0], [512, 0], [512, 0]
         for mod in self.mods:
             img = nrrd.read(img_path[mod])[0]
             img = self.normalize(img)
-            #loc_x, loc_y, loc_z = self.detect_valid_area(img, loc_x, loc_y, loc_z)
             imgs.append(img)
         img = np.stack(imgs, axis = 3) # xyz * channels
         lbl = nrrd.read(lbl_path)[0]
         lbl = np.array(lbl, dtype=np.uint8)
 
-        '''
-        # check empty(black) area
-        print(np.sum(img), np.sum(lbl))
-        img[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1], :] = 0
-        lbl[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1]] = 0
-        print(np.sum(img), np.sum(lbl))
-        '''
-        # crop non-black area
-        #img = img[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1], :]
-        #lbl = lbl[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1]]
         # RandomCrop to patchsize
         img, lbl = self.randomCrop3D(img, lbl)
         log((lbl_path, img.shape, lbl.shape))
-
 
         # augmentation specified in [yml]
         log(('self.augmentations', self.augmentations))

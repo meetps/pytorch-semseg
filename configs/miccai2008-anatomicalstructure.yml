@@ -11,11 +11,11 @@ training:
     train_iters: 300000
     patch_size: 160
     batch_size: 1
-    val_interval: 1
-    n_workers: 1
+    val_interval: 3
+    n_workers: 4
     cross_entropy_ratio: 0.03
     print_interval: 1
-    print_interval_per_batch: True
+    print_interval_per_batch: False
     augmentations:
     optimizer:
         name: 'sgd'
