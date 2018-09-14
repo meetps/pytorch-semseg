@@ -1,13 +1,18 @@
+DEBUG=False
+def log(s):
+    if DEBUG:
+        print(s)
+###################
 import torch.nn as nn
 
 from ptsemseg.models.utils import *
 
-###????
+
 class unet3d(nn.Module):
     def __init__(
         self,
         feature_scale=4,
-        n_classes=21,
+        n_classes=2,
         is_deconv=True,
         in_channels=3,
         is_batchnorm=True,
@@ -18,7 +23,8 @@ class unet3d(nn.Module):
         self.is_batchnorm = is_batchnorm
         self.feature_scale = feature_scale
 
-        filters = [64, 128, 256, 512, 1024]
+        #filters = [64, 128, 256, 512, 1024]   #level4
+        filters = [64, 128, 256, 512]
         filters = [int(x / self.feature_scale) for x in filters]
 
         # downsampling
@@ -31,13 +37,14 @@ class unet3d(nn.Module):
         self.conv3 = unetConv3d(filters[1], filters[2], self.is_batchnorm)
         self.maxpool3 = nn.MaxPool3d(kernel_size=2)
 
-        self.conv4 = unetConv3d(filters[2], filters[3], self.is_batchnorm)
-        self.maxpool4 = nn.MaxPool3d(kernel_size=2)
+        #self.conv4 = unetConv3d(filters[2], filters[3], self.is_batchnorm)   #level4
+        #self.maxpool4 = nn.MaxPool3d(kernel_size=2)                          #level4
 
-        self.center = unetConv3d(filters[3], filters[4], self.is_batchnorm)
+        #self.center = unetConv3d(filters[3], filters[4], self.is_batchnorm)  #level4
+        self.center = unetConv3d(filters[2], filters[3], self.is_batchnorm)
 
         # upsampling
-        self.up_concat4 = unetUp3d(filters[4], filters[3], self.is_deconv)
+        #self.up_concat4 = unetUp3d(filters[4], filters[3], self.is_deconv)   #level4
         self.up_concat3 = unetUp3d(filters[3], filters[2], self.is_deconv)
         self.up_concat2 = unetUp3d(filters[2], filters[1], self.is_deconv)
         self.up_concat1 = unetUp3d(filters[1], filters[0], self.is_deconv)
@@ -46,24 +53,39 @@ class unet3d(nn.Module):
         self.final = nn.Conv3d(filters[0], n_classes, 1)
 
     def forward(self, inputs):
+        log('=>UNET3D=>inputs:{} '.format(inputs.size()))
+
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
+        log('=>UNET3D=>conv1:{} and maxpoo1:{}'.format(conv1.size(), maxpool1.size()))
 
         conv2 = self.conv2(maxpool1)
         maxpool2 = self.maxpool2(conv2)
+        log('=>UNET3D=>conv2:{} and maxpoo2:{}'.format(conv2.size(), maxpool2.size()))
 
         conv3 = self.conv3(maxpool2)
         maxpool3 = self.maxpool3(conv3)
+        log('=>UNET3D=>conv3:{} and maxpoo3:{}'.format(conv3.size(), maxpool3.size()))
 
-        conv4 = self.conv4(maxpool3)
-        maxpool4 = self.maxpool4(conv4)
+        #conv4 = self.conv4(maxpool3)                                                           #level4
+        #maxpool4 = self.maxpool4(conv4)                                                        #level4
+        #log('=>UNET3D=>conv4:{} and maxpoo4:{}'.format(conv4.size(), maxpool4.size()))         #level4
 
-        center = self.center(maxpool4)
-        up4 = self.up_concat4(conv4, center)
-        up3 = self.up_concat3(conv3, up4)
+        #center = self.center(maxpool4)                                                         #level4
+        center = self.center(maxpool3)
+        log('=>UNET3D=>center:{}'.format(center.size()))
+
+        #up4 = self.up_concat4(conv4, center)                                                   #level4
+        #log('=>UNET3D=>up4:{}'.format(up4.size()))                                             #level4
+        #up3 = self.up_concat3(conv3, up4)                                                      #level4
+        up3 = self.up_concat3(conv3, center)
+        log('=>UNET3D=>up3:{}'.format(up3.size()))
         up2 = self.up_concat2(conv2, up3)
+        log('=>UNET3D=>up2:{}'.format(up2.size()))
         up1 = self.up_concat1(conv1, up2)
+        log('=>UNET3D=>up1:{}'.format(up1.size()))
 
         final = self.final(up1)
+        log('=>UNET3D=>final:{}'.format(final.size()))
 
         return final

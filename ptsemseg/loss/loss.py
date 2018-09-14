@@ -1,3 +1,8 @@
+DEBUG=False
+def log(s):
+    if DEBUG:
+        print(s)
+###################
 import torch
 import numpy as np
 import torch.nn as nn
@@ -25,6 +30,10 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
     )
     return loss
 
+def cross_entropy3d(input, target, weight=None, size_average=True):
+    log('LOSS=>CrossEntropy3D=>input.size():{} target.size():{}'.format(input.size(), target.size()))
+    loss = nn.CrossEntropyLoss(weight=weight, size_average=size_average)
+    return loss(input, target)
 
 def multi_scale_cross_entropy2d(
     input, target, weight=None, size_average=True, scale_weight=None

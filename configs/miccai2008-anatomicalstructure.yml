@@ -9,17 +9,21 @@ data:
     path: "/media/machine/Storage/Dataset/BrainLesion/MICCAI2008Split/train&val/"
 training:
     train_iters: 300000
+    patch_size: 160
     batch_size: 1
-    val_interval: 1000
+    val_interval: 1
     n_workers: 1
-    print_interval: 50
+    cross_entropy_ratio: 0.03
+    print_interval: 1
+    print_interval_per_batch: True
+    augmentations:
     optimizer:
         name: 'sgd'
-        lr: 1.0e-10
+        lr: 1.0
         weight_decay: 0.0005
         momentum: 0.99
     loss:
-        name: 'cross_entropy'
-        size_average: False
+        name: 'cross_entropy3d'
+        size_average: True
     lr_schedule:
     resume: unet_miccai2008AS_best_model.pkl

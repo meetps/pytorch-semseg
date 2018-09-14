@@ -1,14 +1,14 @@
-DEBUG=True
+DEBUG=False
 def log(s):
     if DEBUG:
         print(s)
 ###################
-output_channels=5
-###################
+from scipy.ndimage.interpolation import zoom as im_zoom
 import nrrd
 from glob import glob
 import random
 import os
+import time
 import collections
 import torch
 import torchvision
@@ -25,45 +25,39 @@ from ptsemseg.augmentations import *
 
 class miccai2008Loader(data.Dataset):
     def load_data(self):
-        # init_train_val_split
-        ratio = 0.3
-        file_paths = glob(self.root + '*_lesion*.nhdr')
-        case_index = [path.split('/')[-1].split('_lesion')[0] for path in file_paths]
-        case_index_UNC = [temp for temp in case_index if 'UNC' in temp]
-        case_index_CHB = [temp for temp in case_index if 'CHB' in temp]
-        random.shuffle(case_index_CHB)
-        random.shuffle(case_index_UNC)
-        val_case_index_UNC = case_index_UNC[:int(ratio * (len(case_index_UNC)))]
-        val_case_index_CHB = case_index_CHB[:int(ratio * (len(case_index_CHB)))]
-        val_case_index = []
-        val_case_index.extend(val_case_index_CHB)
-        val_case_index.extend(val_case_index_UNC)
         if self.split=='train':
-            print('#####\nTrain&Split:{}\nValidationData[{}]:'.format(len(case_index), len(val_case_index)), val_case_index, '\n#####')
+            print('#####\nTrain&Split:{}\nValidationData[{}]:'.format(len(self.split_info['case_index']),
+                                                                      len(self.split_info['val_case_index'])),
+                                            self.split_info['val_case_index'], '\n#####')
         # init files and annotations
         self.files = {'train':{key: [] for key in self.mods}, 'val':{key: [] for key in self.mods}}
         self.anno_files ={'train':[], 'val':[]}
-        # train dataset
-        for lesion_path in file_paths:
+        for lesion_path in self.split_info['file_paths']:
             curr_case_index = lesion_path.split('/')[-1].split('_lesion')[0]
-            curr_split= 'val' if curr_case_index in val_case_index else 'train'
+            curr_split= 'val' if curr_case_index in self.split_info['val_case_index'] else 'train'
             for mod in self.mods:
                 self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + 'nhdr')[0])
             self.anno_files[curr_split].append(lesion_path)
-        if self.split=='train' and DEBUG:
+        if self.split=='train':
+            if False:
+                print('#####')
+                print('TRAIN')
+                for mod in self.mods:
+                    print('-{}[{}]'.format(mod, len(self.files['train'][mod])),
+                          [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.files['train'][mod]])
+                print('-annot[{}]'.format(len(self.anno_files['train'])), [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.anno_files['train']])
+                print('VAL')
+                for mod in self.mods:
+                    print('-{}[{}]'.format(mod, len(self.files['val'][mod])),
+                          [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.files['val'][mod]])
+                print('-annot[{}]'.format(len(self.anno_files['val'])), [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.anno_files['val']])
+            '''
             print('#####')
-            print('TRAIN')
-            for mod in self.mods:
-                print('-{}[{}]'.format(mod, len(self.files['train'][mod])),
-                      [path.split('/')[-1] for path in self.files['train'][mod]])
-            print('-annot[{}]'.format(len(self.anno_files['train'])), [path.split('/')[-1] for path in self.anno_files['train']])
-            print('VAL')
-            for mod in self.mods:
-                print('-{}[{}]'.format(mod, len(self.files['val'][mod])),
-                      [path.split('/')[-1] for path in self.files['val'][mod]])
-            print('-annot[{}]'.format(len(self.anno_files['val'])), [path.split('/')[-1] for path in self.anno_files['val']])
+            print('Input  Shape pre-defined:({}, {}, {})'.format(self.patch_size, self.patch_size, self.patch_size))
+            print('Output Shape pre-defined:({}, {}, {})'.format(self.lbl_unet_outputs_size, self.lbl_unet_outputs_size,
+                                                                 self.lbl_unet_outputs_size))
             print('#####')
-
+            '''
 
     def __init__(
         self,
@@ -73,11 +67,16 @@ class miccai2008Loader(data.Dataset):
         img_size=(480, 640),
         augmentations=None,
         img_norm=True,
+        split_info=None,
+        patch_size=None
     ):
         self.root = root
         self.is_transform = is_transform
-        self.n_classes = output_channels
+        self.n_classes = 2
         self.augmentations = augmentations
+        self.split_info = split_info
+        self.patch_size = 512 if patch_size is None else patch_size
+        #self.lbl_unet_outputs_size = self.patch_size
         #self.img_norm = img_norm
         #self.img_size = (img_size if isinstance(img_size, tuple) else (img_size, img_size))
 
@@ -85,85 +84,95 @@ class miccai2008Loader(data.Dataset):
         self.mods = ['T1', 'T2', 'FLAIR']
         self.split = split
         self.load_data()
-
+        self.anno_files[self.split] = self.anno_files[self.split][:2] ## DEBUG
 
     def __len__(self):
         return len(self.anno_files[self.split])
 
+    def normalize(self, img):
+        return (img - img.min()) / (img.max() - img.min())
+
+    def detect_valid_area(self, img, loc_x, loc_y, loc_z):
+        def update_loc(loc, curr):
+            return [min(loc[0], curr[0]), max(loc[1], curr[1])]
+        def find_start_end(vector):
+            start_idx, end_idx = 0, len(vector)
+            while vector[start_idx]:
+                start_idx += 1
+            while vector[end_idx - 1]:
+                end_idx -= 1
+            return [start_idx, end_idx]
+
+        loc_x = update_loc(loc_x, find_start_end(np.sum(img, (1, 2)) == 0))
+        loc_y = update_loc(loc_y, find_start_end(np.sum(img, (0, 2)) == 0))
+        loc_z = update_loc(loc_z, find_start_end(np.sum(img, (0, 1)) == 0))
+        return loc_x, loc_y, loc_z
+    def randomCrop3D(self, img, lbl):
+        x = random.randint(0, img.shape[0] - self.patch_size)
+        y = random.randint(0, img.shape[1] - self.patch_size)
+        z = random.randint(0, img.shape[2] - self.patch_size)
+        img = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
+        lbl = lbl[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size]
+        return img, lbl
     def __getitem__(self, index):
-        def normalize(img):
-            mini = img.min()
-            return (img - mini) * 255.0 / (img.max()-mini)
-        def detect_valid_area(img, loc_x, loc_y, loc_z):
-            def find_start_end(vector):
-                start_idx, end_idx = 0, 0
-                while vector[start_idx]:
-                    start_idx += 1
-                while vector[end_idx-1]:
-                    end_idx -= 1
-                return [start_idx, end_idx]
-            sum_along_12_dim_for_z = np.sum(img, (0,1)) == 0
-            sum_along_23_dim_for_x = np.sum(img, (1,2)) == 0
-            sum_along_13_dim_for_y = np.sum(img, (0,2)) == 0
-            curr_loc_z = find_start_end(sum_along_12_dim_for_z)
-            curr_loc_x = find_start_end(sum_along_23_dim_for_x)
-            curr_loc_y = find_start_end(sum_along_13_dim_for_y)
-            #print('curr', curr_loc_x, curr_loc_y, curr_loc_z)
-            loc_x[0] = min(loc_x[0], curr_loc_x[0])
-            loc_x[1] = max(loc_x[1], curr_loc_x[1])
-            loc_y[0] = min(loc_y[0], curr_loc_y[0])
-            loc_y[1] = max(loc_y[1], curr_loc_y[1])
-            loc_z[0] = min(loc_z[0], curr_loc_z[0])
-            loc_z[1] = max(loc_z[1], curr_loc_z[1])
-            return loc_x, loc_y, loc_z
+        st = time.time()
         img_path = {mod : self.files[self.split][mod][index] for mod in self.mods}
         lbl_path = self.anno_files[self.split][index]
+        case_idx = lbl_path.split('/')[-1].split('_lesion')[0]
         # load 4d tensor and lbl
         imgs = []
-        loc_x, loc_y, loc_z = [512, -512], [512, -512], [512, -512]
+        #loc_x, loc_y, loc_z = [512, 0], [512, 0], [512, 0]
         for mod in self.mods:
             img = nrrd.read(img_path[mod])[0]
-            img = normalize(img)
-            loc_x, loc_y, loc_z = detect_valid_area(img, loc_x, loc_y, loc_z)
+            img = self.normalize(img)
+            #loc_x, loc_y, loc_z = self.detect_valid_area(img, loc_x, loc_y, loc_z)
             imgs.append(img)
         img = np.stack(imgs, axis = 3) # xyz * channels
-        print(img.shape)
         lbl = nrrd.read(lbl_path)[0]
         lbl = np.array(lbl, dtype=np.uint8)
-        img = img[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1], :]
-        lbl = lbl[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1]]
-        log((img.shape, lbl.shape))
-        log((type(img), type(lbl)))
-
-
-
-        #img = img.transpose(3, 0, 1, 2)
 
         '''
-        lbl = m.imread(lbl_path)
-          if not (len(img.shape) == 3 and len(lbl.shape) == 2):
-            return self.__getitem__(np.random.randint(0, self.__len__()))
+        # check empty(black) area
+        print(np.sum(img), np.sum(lbl))
+        img[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1], :] = 0
+        lbl[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1]] = 0
+        print(np.sum(img), np.sum(lbl))
+        '''
+        # crop non-black area
+        #img = img[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1], :]
+        #lbl = lbl[loc_x[0]:loc_x[1], loc_y[0]:loc_y[1], loc_z[0]:loc_z[1]]
+        # RandomCrop to patchsize
+        img, lbl = self.randomCrop3D(img, lbl)
+        log((lbl_path, img.shape, lbl.shape))
 
+
+        # augmentation specified in [yml]
+        log(('self.augmentations', self.augmentations))
         if self.augmentations is not None:
             img, lbl = self.augmentations(img, lbl)
-        '''
+
+        # transform   #input: xyzc => output:cxyz
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
-        img = img[:30,:30,:30,:]
-        lbl = lbl[:30, :30, :30]
+
         log((img.shape, lbl.shape))
-        return img, lbl
+        log((index, self.split, lbl_path, 'loadingTime:{}'.format(time.time()-st)))
+        return img, lbl, case_idx
 
     def transform(self, img, lbl):
-        img = img[:, :, :, ::-1]
+        #img = img[:, :, :, ::-1]
         img = img.astype(np.float64)
         img = img.transpose(3, 0, 1, 2)
 
+        '''
+        # Resize label map for UNET  [124=>36]
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
+        lbl =im_zoom(lbl, zoom=self.lbl_unet_outputs_size/self.patch_size, mode="constant")
         lbl = lbl.astype(int)
-        assert np.all(classes == np.unique(lbl))
-        log((classes, np.unique(lbl)))
+        assert np.all(classes == np.unique(lbl)), (classes, np.unique(lbl))
+        '''
+
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
         return img, lbl

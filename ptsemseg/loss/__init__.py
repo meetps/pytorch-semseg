@@ -3,6 +3,7 @@ import logging
 import functools
 
 from ptsemseg.loss.loss import cross_entropy2d
+from ptsemseg.loss.loss import cross_entropy3d
 from ptsemseg.loss.loss import bootstrapped_cross_entropy2d
 from ptsemseg.loss.loss import multi_scale_cross_entropy2d
 
@@ -10,6 +11,7 @@ from ptsemseg.loss.loss import multi_scale_cross_entropy2d
 logger = logging.getLogger('ptsemseg')
 
 key2loss = {'cross_entropy': cross_entropy2d,
+            'cross_entropy3d': cross_entropy3d,
             'bootstrapped_cross_entropy': bootstrapped_cross_entropy2d,
             'multi_scale_cross_entropy': multi_scale_cross_entropy2d,}
 
