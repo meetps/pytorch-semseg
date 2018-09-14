@@ -26,7 +26,7 @@ from ptsemseg.augmentations import *
 class miccai2008Loader(data.Dataset):
     def load_data(self):
         if self.split=='train':
-            print('#####\nTrain&Split:{}\nValidationData[{}]:'.format(len(self.split_info['case_index']),
+            print('#####\nTrain&Val:{}\nValidationData[{}]:'.format(len(self.split_info['case_index']),
                                                                       len(self.split_info['val_case_index'])),
                                             self.split_info['val_case_index'], '\n#####')
         # init files and annotations

@@ -8,6 +8,7 @@ class runningScore(object):
     def __init__(self, n_classes):
         self.n_classes = n_classes
         self.confusion_matrix = np.zeros((n_classes, n_classes))
+        self.patch_dice_list = []
 
     def _fast_hist(self, label_true, label_pred, n_class):
         mask = (label_true >= 0) & (label_true < n_class)
@@ -18,6 +19,10 @@ class runningScore(object):
         return hist
 
     def update(self, label_trues, label_preds):
+        for data_idx in range(label_preds.shape[0]):
+            label_pred, label_true = label_preds[data_idx], label_trues[data_idx]
+            dice = np.sum(label_pred[label_true == 1]) * 2.0 / (np.sum(label_pred) + np.sum(label_true))
+            self.patch_dice_list.append(dice)
         for lt, lp in zip(label_trues, label_preds):
             self.confusion_matrix += self._fast_hist(
                 lt.flatten(), lp.flatten(), self.n_classes
@@ -42,10 +47,12 @@ class runningScore(object):
 
         return (
             {
-                "Overall Acc: \t": acc,
-                "Mean Acc : \t": acc_cls,
-                "FreqW Acc : \t": fwavacc,
-                "Mean IoU : \t": mean_iu,
+                "Overall Acc    : \t": acc,
+                "Mean    Acc    : \t": acc_cls,
+                "FreqW   Acc    : \t": fwavacc,
+                "Mean IoU       : \t": mean_iu,
+                "Patch DICE LIST: \t": self.patch_dice_list,
+                "Patch DICE AVER: \t": sum(self.patch_dice_list)/len(self.patch_dice_list)
             },
             cls_iu,
         )

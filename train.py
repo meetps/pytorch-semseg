@@ -102,7 +102,7 @@ def train(cfg, writer, logger):
         split=cfg['data']['val_split'],
         img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']), split_info = split_info, patch_size = cfg['training']['patch_size'])
 
-    n_class_vales = t_loader.n_classes
+    n_classes = t_loader.n_classes
     trainloader = data.DataLoader(t_loader,
                                   batch_size=cfg['training']['batch_size'], 
                                   num_workers=cfg['training']['n_workers'], 
@@ -113,10 +113,10 @@ def train(cfg, writer, logger):
                                 num_workers=cfg['training']['n_workers'])
 
     # Setup Metrics
-    running_metrics_val = runningScore(n_class_vales)
+    running_metrics_val = runningScore(n_classes)
 
     # Setup Model
-    model = get_model(cfg['model'], n_class_vales).to(device)
+    model = get_model(cfg['model'], n_classes).to(device)
 
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
 
@@ -222,6 +222,7 @@ def train(cfg, writer, logger):
                     outputs_CLASS_val = outputs_FM_val.data.max(1)[1]
                     outputs_PROB_val = softmax_function(outputs_FM_val.data)
                     outputs_lesionPROB_val = outputs_PROB_val[:, 1, :, :, :]
+
                     running_metrics_val.update(labels_val.data.cpu().numpy(), outputs_CLASS_val.cpu().numpy())
                     val_loss_meter.update(val_loss.item())
 
@@ -235,6 +236,7 @@ def train(cfg, writer, logger):
                         image_val = images_val[batch_identifier_index, :, :, :, :].float()               #torch.Size([3, 160, 160, 160])
                         label_val = labels_val[batch_identifier_index, :, :, :].float()                  #torch.Size([160, 160, 160])
                         output_lesionFM_val = outputs_FM_val[batch_identifier_index, 1, :, :, :].float()#torch.Size([160, 160, 160])
+                        output_nonlesFM_val = outputs_FM_val[batch_identifier_index, 0, :, :, :].float()#torch.Size([160, 160, 160])
                         output_CLASS_val = outputs_CLASS_val[batch_identifier_index, :, :, :].float()   #torch.Size([160, 160, 160])
                         output_lesionPROB_val = outputs_lesionPROB_val[batch_identifier_index, :, :, :].float()    #torch.Size([160, 160, 160])
                         for z_index in range(images_val.size()[-1]):
@@ -244,18 +246,21 @@ def train(cfg, writer, logger):
                                 continue
 
                             image_slice = image_val[:, :, :, z_index]
+                            output_nonlesFM_slice = output_nonlesFM_val[:, :, z_index]
                             output_lesionFM_slice = output_lesionFM_val[:, :, z_index]
                             output_lesionPROB_slice = output_lesionPROB_val[:, :, z_index]
 
                             label_slice = label_slice.unsqueeze_(0).repeat(3, 1, 1)
                             output_CLASS_slice = output_CLASS_slice.unsqueeze_(0).repeat(3, 1, 1)
+                            output_nonlesFM_slice = output_nonlesFM_slice.unsqueeze_(0).repeat(3, 1, 1)
                             output_lesionFM_slice = output_lesionFM_slice.unsqueeze_(0).repeat(3, 1, 1)
                             output_lesionPROB_slice = output_lesionPROB_slice.unsqueeze_(0).repeat(3, 1, 1)
 
-                            slice_list = [image_slice, output_lesionFM_slice, output_lesionPROB_slice, output_CLASS_slice, label_slice]
+                            slice_list = [image_slice, output_nonlesFM_slice, output_lesionFM_slice, output_lesionPROB_slice, output_CLASS_slice, label_slice]
+                            #slice_list = [image_slice, output_lesionFM_slice, output_lesionPROB_slice, output_CLASS_slice, label_slice]
                             slice_grid = make_grid(slice_list, padding=20)
                             tensor_grid.append(slice_grid)
-                        tensorboard_image_tensor = make_grid(tensor_grid, nrow=int(math.sqrt(len(tensor_grid)/5))+1, padding=0).permute(1, 2, 0).cpu().numpy()
+                        tensorboard_image_tensor = make_grid(tensor_grid, nrow=int(math.sqrt(len(tensor_grid)/6))+1, padding=0).permute(1, 2, 0).cpu().numpy()
                         writer.add_image(case_index, tensorboard_image_tensor, i_train_iter+1)
             writer.add_scalar('loss/val_loss', val_loss_meter.avg, i_train_iter+1)
             logger.info("Iter %d Loss: %.4f" % (i_train_iter + 1, val_loss_meter.avg))
@@ -268,6 +273,7 @@ def train(cfg, writer, logger):
             for k, v in score.items():
                 print(k, v)
                 logger.info('{}: {}'.format(k, v))
+                if isinstance(v, list): continue
                 writer.add_scalar('val_metrics/{}'.format(k), v, i_train_iter+1)
 
             for k, v in class_iou.items():
@@ -281,8 +287,11 @@ def train(cfg, writer, logger):
             '''
                 This IF-CHECK is used to update the best model
             '''
-            if score["Mean IoU : \t"] >= best_iou:
-                best_iou = score["Mean IoU : \t"]
+            if score["Mean IoU       : \t"] >= best_iou:
+            #if score["Patch DICE AVER: \t"] >= best_iou:
+                #best_iou = score["Patch DICE AVER: \t"]
+                best_iou = score["Mean IoU       : \t"]
+
                 state = {
                     "epoch": i_train_iter + 1,
                     "model_state": model.state_dict(),
@@ -314,7 +323,7 @@ if __name__ == "__main__":
         cfg = yaml.load(fp)
 
     run_id = random.randint(1,100000)
-    logdir = os.path.join('runs', os.path.basename(args.config)[:-4] , str(run_id))
+    logdir = os.path.join('runs', os.path.basename(args.config)[:-4] , "TEMP-CEWeight:{}-LR:{}-idx:{}".format(cfg['training']['cross_entropy_ratio'],cfg['training']['optimizer']['lr'], str(run_id)))
     writer = SummaryWriter(log_dir=logdir)
 
     # Display Tensorboard

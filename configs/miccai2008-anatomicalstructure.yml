@@ -11,17 +11,17 @@ training:
     train_iters: 300000
     patch_size: 160
     batch_size: 1
-    val_interval: 3
-    n_workers: 4
-    cross_entropy_ratio: 0.03
+    val_interval: 1
+    n_workers: 3
+    cross_entropy_ratio: 0.001
     print_interval: 1
     print_interval_per_batch: False
     augmentations:
     optimizer:
-        name: 'sgd'
-        lr: 1.0
+        name: 'adam'
+        lr: 0.001
         weight_decay: 0.0005
-        momentum: 0.99
+        #momentum: 0.99
     loss:
         name: 'cross_entropy3d'
         size_average: True
