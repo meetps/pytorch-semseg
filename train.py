@@ -27,7 +27,7 @@ def init_data_split(root):
     val_case_index.extend(val_case_index_UNC)
     return {'file_paths': file_paths, 'val_case_index': val_case_index, 'case_index':case_index}
 ###################
-def prep_class_weights(ratio):
+def prep_class_val_weights(ratio):
     weight_foreback = torch.ones(2)
     weight_foreback[0] = 1 / (1 - ratio)
     weight_foreback[1] = 1 / ratio
@@ -78,14 +78,13 @@ def train(cfg, writer, logger):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Setup Cross Entropy Weight
-    weight = prep_class_weights(cfg['training']['cross_entropy_ratio'])
+    weight = prep_class_val_weights(cfg['training']['cross_entropy_ratio'])
 
     # Setup Augmentations
     augmentations = cfg['training'].get('augmentations', None)
     log(('augmentations_cfg:', augmentations))
-
-
     data_aug = get_composed_augmentations(augmentations)
+
 
     # Setup Dataloader
     data_loader = get_loader(cfg['data']['dataset'])
@@ -103,7 +102,7 @@ def train(cfg, writer, logger):
         split=cfg['data']['val_split'],
         img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']), split_info = split_info, patch_size = cfg['training']['patch_size'])
 
-    n_classes = t_loader.n_classes
+    n_class_vales = t_loader.n_classes
     trainloader = data.DataLoader(t_loader,
                                   batch_size=cfg['training']['batch_size'], 
                                   num_workers=cfg['training']['n_workers'], 
@@ -114,10 +113,10 @@ def train(cfg, writer, logger):
                                 num_workers=cfg['training']['n_workers'])
 
     # Setup Metrics
-    running_metrics_val = runningScore(n_classes)
+    running_metrics_val = runningScore(n_class_vales)
 
     # Setup Model
-    model = get_model(cfg['model'], n_classes).to(device)
+    model = get_model(cfg['model'], n_class_vales).to(device)
 
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
 
@@ -133,6 +132,7 @@ def train(cfg, writer, logger):
 
     loss_fn = get_loss_function(cfg)
     logger.info("Using loss {}".format(loss_fn))
+    softmax_function = nn.Softmax(dim=1)
 
     start_iter = 0
     if cfg['training']['resume'] is not None:
@@ -158,10 +158,9 @@ def train(cfg, writer, logger):
 
     best_iou = -100.0
     i_train_iter = start_iter
-    flag = True
 
-    display('Training from {}th iteration'.format(i_train_iter))
-    while i_train_iter <= cfg['training']['train_iters'] and flag:
+    display('Training from {}th iteration\n'.format(i_train_iter))
+    while i_train_iter < cfg['training']['train_iters']:
         i_batch_idx = 0
         train_iter_start_time = time.time()
         for (images, labels, case_index_list) in trainloader:
@@ -172,9 +171,11 @@ def train(cfg, writer, logger):
             labels = labels.to(device)
 
             optimizer.zero_grad()
-            outputs = model(images)
-            log('TrainIter=> images.size():{} labels.size():{} | outputs.size():{}'.format(images.size(), labels.size(), outputs.size()))
-            loss = loss_fn(input=outputs, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average'])
+            outputs_FM = model(images)
+            #print('Unique on labels:{}'.format(np.unique(labels.data.cpu().numpy())))    #[0, 1]
+            #print('Unique on outputs:{}'.format(np.unique(outputs_FM.data.cpu().numpy())))  #[-1.15, +0.39]
+            log('TrainIter=> images.size():{} labels.size():{} | outputs.size():{}'.format(images.size(), labels.size(), outputs_FM.size()))
+            loss = loss_fn(input=outputs_FM, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average']) #Input:FM, Softmax is built with crossentropy loss fucntion
 
             loss.backward()
             optimizer.step()
@@ -199,28 +200,31 @@ def train(cfg, writer, logger):
                                                                                                  entire_time_all_cases,
                                                                                                  entire_time_all_cases/(len(trainloader)*cfg['training']['batch_size'])))
 
-        if (i_train_iter + 1) % cfg['training']['val_interval'] == 0 or \
-           (i_train_iter + 1) == cfg['training']['train_iters']:
+        validation_check = (i_train_iter + 1) % cfg['training']['val_interval'] == 0 or \
+                           (i_train_iter + 1) == cfg['training']['train_iters']
+        if not validation_check:
+            print('')
+        else:
             model.eval()
             with torch.no_grad():
                 for i_val, (images_val, labels_val, case_index_list_val) in enumerate(valloader):
                     images_val = images_val.to(device)
                     labels_val = labels_val.to(device)
 
-                    outputs_val = model(images_val)
+                    outputs_FM_val = model(images_val)
+
                     log('ValIter=> images_val.size():{} labels_val.size():{} | outputs.size():{}'.format(images_val.size(),
                                                                                                          labels_val.size(),
-                                                                                                   outputs_val.size()))
+                                                                                                         outputs_FM_val.size()))#Input:FM, Softmax is built with crossentropy loss fucntion
 
-                    val_loss = loss_fn(input=outputs_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
-                    pred = outputs_val.data.max(1)[1].cpu().numpy()
-                    gt = labels_val.data.cpu().numpy()
+                    val_loss = loss_fn(input=outputs_FM_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
 
-
-                    running_metrics_val.update(gt, pred)
+                    outputs_CLASS_val = outputs_FM_val.data.max(1)[1]
+                    outputs_PROB_val = softmax_function(outputs_FM_val.data)
+                    outputs_lesionPROB_val = outputs_PROB_val[:, 1, :, :, :]
+                    running_metrics_val.update(labels_val.data.cpu().numpy(), outputs_CLASS_val.cpu().numpy())
                     val_loss_meter.update(val_loss.item())
-                    #torch.Size([1, 3, 160, 160, 160])torch.Size([1, 160, 160, 160])torch.Size([1, 2, 160, 160, 160])
-                    #print(images_val.size(), labels_val.size(), outputs_val.size())
+
 
                     '''
                         This FOR-LOOP is used to visualize validation data via tensorboard
@@ -228,41 +232,55 @@ def train(cfg, writer, logger):
                     '''
                     for batch_identifier_index, case_index in enumerate(case_index_list_val):
                         tensor_grid = []
-                        image_val = images_val[batch_identifier_index, :, :, :, :].float()
-                        label_val = labels_val[batch_identifier_index, :, :, :].float()
-                        output_val = images_val[batch_identifier_index, 1, :, :, :].float()
-                        #torch.Size([3, 160, 160, 160]) torch.Size([160, 160, 160]) torch.Size([160, 160, 160])
-                        #print(image_val.size(), label_val.size(), output_val.size())
+                        image_val = images_val[batch_identifier_index, :, :, :, :].float()               #torch.Size([3, 160, 160, 160])
+                        label_val = labels_val[batch_identifier_index, :, :, :].float()                  #torch.Size([160, 160, 160])
+                        output_lesionFM_val = outputs_FM_val[batch_identifier_index, 1, :, :, :].float()#torch.Size([160, 160, 160])
+                        output_CLASS_val = outputs_CLASS_val[batch_identifier_index, :, :, :].float()   #torch.Size([160, 160, 160])
+                        output_lesionPROB_val = outputs_lesionPROB_val[batch_identifier_index, :, :, :].float()    #torch.Size([160, 160, 160])
                         for z_index in range(images_val.size()[-1]):
                             label_slice = label_val[:, :, z_index]
-                            output_slice = output_val[:, :, z_index]
-                            if label_slice.sum() == 0 and output_slice.sum() == 0:
+                            output_CLASS_slice = output_CLASS_val[:, :, z_index]
+                            if label_slice.sum() == 0 and output_CLASS_slice.sum() == 0:
                                 continue
+
                             image_slice = image_val[:, :, :, z_index]
+                            output_lesionFM_slice = output_lesionFM_val[:, :, z_index]
+                            output_lesionPROB_slice = output_lesionPROB_val[:, :, z_index]
+
                             label_slice = label_slice.unsqueeze_(0).repeat(3, 1, 1)
-                            output_slice = output_slice.unsqueeze_(0).repeat(3, 1, 1)
-                            slice_list = [image_slice,output_slice, label_slice]
+                            output_CLASS_slice = output_CLASS_slice.unsqueeze_(0).repeat(3, 1, 1)
+                            output_lesionFM_slice = output_lesionFM_slice.unsqueeze_(0).repeat(3, 1, 1)
+                            output_lesionPROB_slice = output_lesionPROB_slice.unsqueeze_(0).repeat(3, 1, 1)
+
+                            slice_list = [image_slice, output_lesionFM_slice, output_lesionPROB_slice, output_CLASS_slice, label_slice]
                             slice_grid = make_grid(slice_list, padding=20)
                             tensor_grid.append(slice_grid)
-                        tensorboard_image_tensor = make_grid(tensor_grid, nrow=int(math.sqrt(len(tensor_grid)/3))+1, padding=0).permute(1, 2, 0).cpu().numpy()
-                        #print(tensorboard_image_tensor.shape, type(tensorboard_image_tensor))
-                        writer.add_image(case_index, tensorboard_image_tensor, i_train_iter)
+                        tensorboard_image_tensor = make_grid(tensor_grid, nrow=int(math.sqrt(len(tensor_grid)/5))+1, padding=0).permute(1, 2, 0).cpu().numpy()
+                        writer.add_image(case_index, tensorboard_image_tensor, i_train_iter+1)
             writer.add_scalar('loss/val_loss', val_loss_meter.avg, i_train_iter+1)
             logger.info("Iter %d Loss: %.4f" % (i_train_iter + 1, val_loss_meter.avg))
 
+            '''
+                This CODE-BLOCK is used to calculate and update the evaluation matrcs 
+            '''
             score, class_iou = running_metrics_val.get_scores()
+            print('\x1b[1;32;44mValidationDataLoaded')
             for k, v in score.items():
                 print(k, v)
                 logger.info('{}: {}'.format(k, v))
                 writer.add_scalar('val_metrics/{}'.format(k), v, i_train_iter+1)
 
             for k, v in class_iou.items():
+                print('IOU:cls_{}:{}'.format(k, v))
                 logger.info('{}: {}'.format(k, v))
                 writer.add_scalar('val_metrics/cls_{}'.format(k), v, i_train_iter+1)
-
+            print('\x1b[0m\n')
             val_loss_meter.reset()
             running_metrics_val.reset()
 
+            '''
+                This IF-CHECK is used to update the best model
+            '''
             if score["Mean IoU : \t"] >= best_iou:
                 best_iou = score["Mean IoU : \t"]
                 state = {
@@ -277,10 +295,6 @@ def train(cfg, writer, logger):
                                              cfg['model']['arch'],
                                              cfg['data']['dataset']))
                 torch.save(state, save_path)
-
-        if (i_train_iter + 1) == cfg['training']['train_iters']:
-            flag = False
-            break
         i_train_iter += 1
 
 
@@ -307,12 +321,12 @@ if __name__ == "__main__":
     print('TensorBoard::RUNDIR: {}'.format(logdir))
 
     # Display Config
-    print('\x1b[1;32;44m#######\nCONFIG:')
+    print('\x1b[1;33;40mCONFIG:')
     for key, value_dict in cfg.items():
         print('{}:'.format(key))
         for k, v in value_dict.items():
             print('\t\t{}: {}'.format(k, v))
-    print('#######\n\x1b[0m')
+    print('\x1b[0m')
 
     shutil.copy(args.config, logdir)
 
