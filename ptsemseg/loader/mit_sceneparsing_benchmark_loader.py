@@ -78,7 +78,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
             self.annotations_base, os.path.basename(img_path)[:-4] + ".png"
         )
 
-        img = m.imread(img_path)
+        img = m.imread(img_path, mode='RGB')
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
@@ -98,9 +98,12 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        if self.img_size == ('same', 'same'):
+            pass
+        else:
+            img = m.imresize(
+                img, (self.img_size[0], self.img_size[1])
+            )  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -113,7 +116,10 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
 
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
+        if self.img_size == ('same', 'same'):
+            pass
+        else:
+            lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
         lbl = lbl.astype(int)
 
         if not np.all(classes == np.unique(lbl)):
