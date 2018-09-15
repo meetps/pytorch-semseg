@@ -250,8 +250,8 @@ def train(cfg, writer, logger):
                             output_lesionFM_slice = output_lesionFM_val[:, :, z_index]
                             output_lesionPROB_slice = output_lesionPROB_val[:, :, z_index]
 
-                            label_slice = label_slice.unsqueeze_(0).repeat(3, 1, 1)
-                            output_CLASS_slice = output_CLASS_slice.unsqueeze_(0).repeat(3, 1, 1)
+                            label_slice = F.pad(label_slice.unsqueeze_(0),(0,0,0,0,1,1))
+                            output_CLASS_slice = F.pad(output_CLASS_slice.unsqueeze_(0),(0,0,0,0,2,0))
                             output_nonlesFM_slice = output_nonlesFM_slice.unsqueeze_(0).repeat(3, 1, 1)
                             output_lesionFM_slice = output_lesionFM_slice.unsqueeze_(0).repeat(3, 1, 1)
                             output_lesionPROB_slice = output_lesionPROB_slice.unsqueeze_(0).repeat(3, 1, 1)
@@ -323,7 +323,7 @@ if __name__ == "__main__":
         cfg = yaml.load(fp)
 
     run_id = random.randint(1,100000)
-    logdir = os.path.join('runs', os.path.basename(args.config)[:-4] , "TEMP-CEWeight:{}-LR:{}-idx:{}".format(cfg['training']['cross_entropy_ratio'],cfg['training']['optimizer']['lr'], str(run_id)))
+    logdir = os.path.join('runs', os.path.basename(args.config)[:-4] , str(run_id))
     writer = SummaryWriter(log_dir=logdir)
 
     # Display Tensorboard

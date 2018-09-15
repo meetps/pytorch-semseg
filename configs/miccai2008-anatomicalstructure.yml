@@ -1,5 +1,5 @@
 model:
-    arch: unet3d
+    arch: xnet
 data:
     dataset: miccai2008
     train_split: train
@@ -13,7 +13,7 @@ training:
     batch_size: 1
     val_interval: 1
     n_workers: 3
-    cross_entropy_ratio: 0.001
+    cross_entropy_ratio: 0.01
     print_interval: 1
     print_interval_per_batch: False
     augmentations:
