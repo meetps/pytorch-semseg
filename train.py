@@ -12,7 +12,8 @@ from glob import glob
 import random
 def init_data_split(root):
     # init_train_val_split
-    file_paths = glob(root + '*_lesion*.nhdr')
+    #file_paths = glob(root + '*_lesion*.nhdr')  # preprocessing_incompleted
+    file_paths = glob(root + '*_lesion*_preprocessed.npy')  # preprocessing_completed
     ratio = 0.3
     case_index = [path.split('/')[-1].split('_lesion')[0] for path in file_paths]
     random.shuffle(case_index)

@@ -36,7 +36,8 @@ class miccai2008Loader(data.Dataset):
             curr_case_index = lesion_path.split('/')[-1].split('_lesion')[0]
             curr_split= 'val' if curr_case_index in self.split_info['val_case_index'] else 'train'
             for mod in self.mods:
-                self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + 'nhdr')[0])
+                #self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + 'nhdr')[0]) # preprocessing_incompleted
+                self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + '_preprocessed.npy')[0]) # preprocessing_completed
             self.anno_files[curr_split].append(lesion_path)
         if self.split=='train':
             if False:
@@ -70,9 +71,6 @@ class miccai2008Loader(data.Dataset):
         self.augmentations = augmentations
         self.split_info = split_info
         self.patch_size = 512 if patch_size is None else patch_size
-        #self.lbl_unet_outputs_size = self.patch_size
-        #self.img_norm = img_norm
-        #self.img_size = (img_size if isinstance(img_size, tuple) else (img_size, img_size))
 
         self.cmap = self.color_map(normalized=False)
         self.mods = mods
@@ -85,28 +83,45 @@ class miccai2008Loader(data.Dataset):
     def normalize(self, img):
         return (img - img.min()) / (img.max() - img.min())
     def randomCrop3D(self, img, lbl):
+        idx = 0
+        thresh = 25
         while True:
             x = random.randint(0, img.shape[0] - self.patch_size)
             y = random.randint(0, img.shape[1] - self.patch_size)
             z = random.randint(0, img.shape[2] - self.patch_size)
             lbl_cropped = lbl[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size]
-            if lbl_cropped.sum() > 1000:
-                img_cropped = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
+            if lbl_cropped.sum() > thresh:
+                img_cropped = img[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size, :]
                 return img_cropped, lbl_cropped
+            idx += 1
+            print('Online Sampling Failed({})[{} < {}]'.format(idx, lbl_cropped.sum(), thresh))
     def __getitem__(self, index):
         st = time.time()
         img_path = {mod : self.files[self.split][mod][index] for mod in self.mods}
         lbl_path = self.anno_files[self.split][index]
         case_idx = lbl_path.split('/')[-1].split('_lesion')[0]
         # load 4d tensor and lbl
+        '''
+        # preprocessing_incompleted
         imgs = []
         for mod in self.mods:
-            img = nrrd.read(img_path[mod])[0]
-            img = self.normalize(img)
+            img = nrrd.read(img_path[mod])[0].astype(float)
+            print('start')
+            if self.img_resize is not None:
+                img = im_zoom(img, zoom=self.img_resize, mode="nearest")
+            print('end')
+            img = self.normalize(img)  # scan_normalization
             imgs.append(img)
         img = np.stack(imgs, axis = 3) # xyz * channels
-        lbl = nrrd.read(lbl_path)[0]
+        lbl = nrrd.read(lbl_path)[0].astype(float)
+        if self.img_resize is not None:
+            lbl = im_zoom(lbl, zoom=self.img_resize, mode="nearest")
         lbl = np.array(lbl, dtype=np.uint8)
+        '''
+        # preprocessing_completed
+        img = np.stack([np.load(img_path[mod]) for mod in self.mods], axis=3)  # xyz * channels
+        lbl = np.load(lbl_path)
+        #print(img.shape, lbl.shape, np.unique(img), np.unique(lbl), img.dtype, lbl.dtype)
 
         # RandomCrop to patchsize
         img, lbl = self.randomCrop3D(img, lbl)
@@ -123,22 +138,12 @@ class miccai2008Loader(data.Dataset):
 
         log((img.shape, lbl.shape))
         log((index, self.split, lbl_path, 'loadingTime:{}'.format(time.time()-st)))
+        #print(img.shape, lbl.shape, np.unique(img), np.unique(lbl))
         return img, lbl, case_idx
 
     def transform(self, img, lbl):
-        #img = img[:, :, :, ::-1]
         img = img.astype(np.float64)
         img = img.transpose(3, 0, 1, 2)
-
-        '''
-        # Resize label map for UNET  [124=>36]
-        classes = np.unique(lbl)
-        lbl = lbl.astype(float)
-        lbl =im_zoom(lbl, zoom=self.lbl_unet_outputs_size/self.patch_size, mode="constant")
-        lbl = lbl.astype(int)
-        assert np.all(classes == np.unique(lbl)), (classes, np.unique(lbl))
-        '''
-
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
         return img, lbl
