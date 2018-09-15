@@ -6,20 +6,21 @@ data:
     val_split: val
     img_rows: 'same'
     img_cols: 'same'
+    mods: ['FLAIR','FLAIR','FLAIR']
     path: "/media/machine/Storage/Dataset/BrainLesion/MICCAI2008Split/train&val/"
 training:
     train_iters: 300000
-    patch_size: 160
+    patch_size: 192  #160 for unet3d #224 for linknet3d
     batch_size: 1
     val_interval: 1
     n_workers: 3
-    cross_entropy_ratio: 0.003
+    cross_entropy_ratio: 0.00003
     print_interval: 1
     print_interval_per_batch: False
     augmentations:
     optimizer:
         name: 'adam'
-        lr: 0.001
+        lr: 0.1
         weight_decay: 0.0005
         #momentum: 0.99
     loss:

@@ -1,8 +1,3 @@
-DEBUG=False
-def log(s):
-    if DEBUG:
-        print(s)
-###################
 import torch.nn as nn
 
 from .utils3d import *
@@ -53,39 +48,39 @@ class unet3d(nn.Module):
         self.final = nn.Conv3d(filters[0], n_classes, 1)
 
     def forward(self, inputs):
-        log('=>UNET3D=>inputs:{} '.format(inputs.size()))
+        network_log('=>UNET3D=>inputs:{} '.format(inputs.size()), color_idx=None)
 
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
-        log('=>UNET3D=>conv1:{} and maxpoo1:{}'.format(conv1.size(), maxpool1.size()))
+        network_log('=>UNET3D=>conv1:{} and maxpoo1:{}'.format(conv1.size(), maxpool1.size()), color_idx=None)
 
         conv2 = self.conv2(maxpool1)
         maxpool2 = self.maxpool2(conv2)
-        log('=>UNET3D=>conv2:{} and maxpoo2:{}'.format(conv2.size(), maxpool2.size()))
+        network_log('=>UNET3D=>conv2:{} and maxpoo2:{}'.format(conv2.size(), maxpool2.size()), color_idx=None)
 
         conv3 = self.conv3(maxpool2)
         maxpool3 = self.maxpool3(conv3)
-        log('=>UNET3D=>conv3:{} and maxpoo3:{}'.format(conv3.size(), maxpool3.size()))
+        network_log('=>UNET3D=>conv3:{} and maxpoo3:{}'.format(conv3.size(), maxpool3.size()), color_idx=None)
 
         #conv4 = self.conv4(maxpool3)                                                           #level4
         #maxpool4 = self.maxpool4(conv4)                                                        #level4
-        #log('=>UNET3D=>conv4:{} and maxpoo4:{}'.format(conv4.size(), maxpool4.size()))         #level4
+        #network_log('=>UNET3D=>conv4:{} and maxpoo4:{}'.format(conv4.size(), maxpool4.size()), color_idx=None)  #level4
 
         #center = self.center(maxpool4)                                                         #level4
         center = self.center(maxpool3)
-        log('=>UNET3D=>center:{}'.format(center.size()))
+        network_log('=>UNET3D=>center:{}'.format(center.size()), color_idx=None)
 
         #up4 = self.up_concat4(conv4, center)                                                   #level4
-        #log('=>UNET3D=>up4:{}'.format(up4.size()))                                             #level4
+        #network_log('=>UNET3D=>up4:{}'.format(up4.size()))                                             #level4
         #up3 = self.up_concat3(conv3, up4)                                                      #level4
         up3 = self.up_concat3(conv3, center)
-        log('=>UNET3D=>up3:{}'.format(up3.size()))
+        network_log('=>UNET3D=>up3:{}'.format(up3.size()), color_idx=None)
         up2 = self.up_concat2(conv2, up3)
-        log('=>UNET3D=>up2:{}'.format(up2.size()))
+        network_log('=>UNET3D=>up2:{}'.format(up2.size()), color_idx=None)
         up1 = self.up_concat1(conv1, up2)
-        log('=>UNET3D=>up1:{}'.format(up1.size()))
+        network_log('=>UNET3D=>up1:{}'.format(up1.size()), color_idx=None)
 
         final = self.final(up1)
-        log('=>UNET3D=>final:{}'.format(final.size()))
+        network_log('=>UNET3D=>final:{}'.format(final.size()))
 
         return final

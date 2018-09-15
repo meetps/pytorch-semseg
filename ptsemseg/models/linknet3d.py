@@ -1,8 +1,4 @@
-DEBUG=True
-colors = ['\x1b[0m', '\x1b[6;30;42m', '\x1b[2;30;41m']
-def log(s, color):
-    if DEBUG:
-        print(color+s+colors[0])
+
 ###################
 import torch.nn as nn
 import torchvision.models as models
@@ -79,32 +75,32 @@ class linknet3d(nn.Module):
 
     def forward(self, input):
         # Encoder
-        log('linknet3d=>input.size():{}'.format(input.size()), colors[1])
+        network_log('linknet3d=>input.size():{}'.format(input.size()), color_idx=1)
         input1 = self.convbnrelu1(input)
-        log('linknet3d=>input1.size():{}'.format(input1.size()), colors[1])
+        network_log('linknet3d=>input1.size():{}'.format(input1.size()), color_idx=1)
         input2 = self.maxpool(input1)
-        log('linknet3d=>input2.size():{}'.format(input2.size()), colors[1])
+        network_log('linknet3d=>input2.size():{}'.format(input2.size()), color_idx=1)
         e1 = self.encoder1(input2)
-        log('linknet3d=>e1.size():{}'.format(e1.size()), colors[2])
+        network_log('linknet3d=>e1.size():{}'.format(e1.size()), color_idx=2)
         e2 = self.encoder2(e1)
-        log('linknet3d=>e2.size():{}'.format(e2.size()), colors[2])
+        network_log('linknet3d=>e2.size():{}'.format(e2.size()), color_idx=2)
         e3 = self.encoder3(e2)
-        log('linknet3d=>e3.size():{}'.format(e3.size()), colors[2])
+        network_log('linknet3d=>e3.size():{}'.format(e3.size()), color_idx=2)
         e4 = self.encoder4(e3)
-        log('linknet3d=>e4.size():{}'.format(e4.size()), colors[2])
+        network_log('linknet3d=>e4.size():{}'.format(e4.size()), color_idx=2)
 
         d4 = self.decoder4(e4) + e3
-        log('linknet3d=>d4.size():{}'.format(d4.size()), colors[1])
+        network_log('linknet3d=>d4.size():{}'.format(d4.size()), color_idx=1)
         d3 = self.decoder3(d4) + e2
-        log('linknet3d=>d3.size():{}'.format(d3.size()), colors[1])
+        network_log('linknet3d=>d3.size():{}'.format(d3.size()), color_idx=1)
         d2 = self.decoder2(d3) + e1
-        log('linknet3d=>d3.size():{}'.format(d2.size()), colors[1])
+        network_log('linknet3d=>d3.size():{}'.format(d2.size()), color_idx=1)
         d1 = self.decoder1(d2)
-        log('linknet3d=>d1.size():{}'.format(d1.size()), colors[1])
+        network_log('linknet3d=>d1.size():{}'.format(d1.size()), color_idx=1)
         f1 = self.finaldeconvbnrelu1(d1)
-        log('linknet3d=>f1.size():{}'.format(f1.size()), colors[2])
+        network_log('linknet3d=>f1.size():{}'.format(f1.size()), color_idx=2)
         f2 = self.finalconvbnrelu2(f1)
-        log('linknet3d=>f2.size():{}'.format(f2.size()), colors[2])
+        network_log('linknet3d=>f2.size():{}'.format(f2.size()), color_idx=2)
         f3 = self.finalconv3(f2)
-        log('linknet3d=>f3.size():{}'.format(f3.size()), colors[2])
+        network_log('linknet3d=>f3.size():{}'.format(f3.size()), color_idx=2)
         return f3

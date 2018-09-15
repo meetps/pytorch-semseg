@@ -94,13 +94,13 @@ def train(cfg, writer, logger):
         is_transform=True,
         split=cfg['data']['train_split'],
         img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']),
-        augmentations=data_aug, split_info = split_info, patch_size = cfg['training']['patch_size'])
+        augmentations=data_aug, split_info = split_info, patch_size = cfg['training']['patch_size'], mods = cfg['data']['mods'])
 
     v_loader = data_loader(
         data_path,
         is_transform=True,
         split=cfg['data']['val_split'],
-        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']), split_info = split_info, patch_size = cfg['training']['patch_size'])
+        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']), split_info = split_info, patch_size = cfg['training']['patch_size'], mods = cfg['data']['mods'])
 
     n_classes = t_loader.n_classes
     trainloader = data.DataLoader(t_loader,

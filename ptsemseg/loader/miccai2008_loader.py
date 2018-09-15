@@ -61,7 +61,8 @@ class miccai2008Loader(data.Dataset):
         augmentations=None,
         img_norm=True,
         split_info=None,
-        patch_size=None
+        patch_size=None,
+        mods=None
     ):
         self.root = root
         self.is_transform = is_transform
@@ -74,7 +75,8 @@ class miccai2008Loader(data.Dataset):
         #self.img_size = (img_size if isinstance(img_size, tuple) else (img_size, img_size))
 
         self.cmap = self.color_map(normalized=False)
-        self.mods = ['T1', 'T2', 'FLAIR']
+        self.mods = mods
+
         self.split = split
         self.load_data()
         self.anno_files[self.split] = self.anno_files[self.split]#[:2] ## DEBUG
@@ -88,7 +90,7 @@ class miccai2008Loader(data.Dataset):
             y = random.randint(0, img.shape[1] - self.patch_size)
             z = random.randint(0, img.shape[2] - self.patch_size)
             lbl_cropped = lbl[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size]
-            if lbl_cropped.sum() > 100:
+            if lbl_cropped.sum() > 1000:
                 img_cropped = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
                 return img_cropped, lbl_cropped
     def __getitem__(self, index):
