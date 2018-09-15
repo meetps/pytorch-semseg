@@ -88,7 +88,7 @@ class miccai2008Loader(data.Dataset):
             y = random.randint(0, img.shape[1] - self.patch_size)
             z = random.randint(0, img.shape[2] - self.patch_size)
             lbl_cropped = lbl[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size]
-            if lbl_cropped.sum() > 0:
+            if lbl_cropped.sum() > 100:
                 img_cropped = img[x:x+self.patch_size, y:y+self.patch_size, z:z+self.patch_size, :]
                 return img_cropped, lbl_cropped
     def __getitem__(self, index):

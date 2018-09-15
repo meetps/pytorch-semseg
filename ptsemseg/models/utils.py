@@ -1,19 +1,8 @@
-DEBUG=False
-def log(s):
-    if DEBUG:
-        print(s)
-###################
-colors = ['\x1b[0m', '\x1b[6;30;42m', '\x1b[2;30;41m']
-###################
-
-
 import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-from torch.nn.functional import upsample_bilinear as upsample_bilinear3d
 from torch.autograd import Variable
-
 
 class conv2DBatchNorm(nn.Module):
     def __init__(
@@ -226,72 +215,6 @@ class unetUp(nn.Module):
         padding = 2 * [offset // 2, offset // 2]
         outputs1 = F.pad(inputs1, padding)
         return self.conv(torch.cat([outputs1, outputs2], 1))
-
-'''
-UNET3D - Chaoyi
-'''
-class unetConv3d(nn.Module):
-    def __init__(self, in_size, out_size, is_batchnorm):
-        super(unetConv3d, self).__init__()
-        padding = 1 # 0 before
-        if is_batchnorm:
-            self.conv1 = nn.Sequential(
-                nn.Conv3d(in_size, out_size, 3, 1, padding),
-                nn.BatchNorm3d(out_size),
-                nn.ReLU(),
-            )
-            self.conv2 = nn.Sequential(
-                nn.Conv3d(out_size, out_size, 3, 1, padding),
-                nn.BatchNorm3d(out_size),
-                nn.ReLU(),
-            )
-        else:
-            self.conv1 = nn.Sequential(nn.Conv3d(in_size, out_size, 3, 1, padding), nn.ReLU())
-            self.conv2 = nn.Sequential(
-                nn.Conv3d(out_size, out_size, 3, 1, padding), nn.ReLU()
-            )
-
-    def forward(self, inputs):
-        log('======>{} Conv3d=>inputs.size():{} {}'.format(colors[1], inputs.size(), colors[0]))
-        outputs = self.conv1(inputs)
-        log('======>{} Conv3d=>[After self.conv1()] inputs.size():{} {}'.format(colors[1], outputs.size(), colors[0]))
-        outputs = self.conv2(outputs)
-        log('======>{} Conv3d=>[After self.conv2()] inputs.size():{} {}'.format(colors[1], outputs.size(), colors[0]))
-        return outputs
-
-class unetUp3d(nn.Module):
-    def __init__(self, in_size, out_size, is_deconv):
-        super(unetUp3d, self).__init__()
-        padding = 0 # 0 before
-        self.is_deconv = is_deconv
-        self.conv = unetConv3d(in_size, out_size, False)
-        if is_deconv:
-            self.up = nn.ConvTranspose3d(in_size, out_size, kernel_size=2, stride=2, padding=padding)
-    def forward(self, inputs1, inputs2):
-        log('======>{} Up3d=>is_deconv:{} {}'.format(colors[2], self.is_deconv, colors[0]))
-        log('======>{} Up3d=>inputs1.size():{}, inputs2.size():{} {}'.format(colors[2], inputs1.size(), inputs2.size(), colors[0]))
-        if self.is_deconv:
-            outputs2 = self.up(inputs2)
-        else:
-            outputs2 = upsample_bilinear3d(inputs2, scale_factor=2)
-        log('======>{} Up3d=>[After-self.up()] inputs2.size():{} {}'.format(colors[2], outputs2.size(), colors[0]))
-        '''
-        offset = outputs2.size()[2] - inputs1.size()[2]
-        padding = 2 * [offset // 2, offset // 2, offset//2]
-        log('======>{} Up3d=>[padding] offset:{} padding:{} {}'.format(colors[2], offset, padding, colors[0]))
-        outputs1 = F.pad(inputs1, padding)
-        '''
-        outputs1 = inputs1
-        log('======>{} Up3d=>[After-padding] inputs1.size():{} {}'.format(colors[2], outputs1.size(), colors[0]))
-
-        cat_var = torch.cat([outputs1, outputs2], 1)
-        log('======>{} Up3d=>[After-cat] outputs.size():{} {}'.format(colors[2], cat_var.size(), colors[0]))
-        outputs = self.conv(cat_var)
-        log('======>{} Up3d=>[After-conv] outputs.size():{} {}'.format(colors[2], outputs.size(), colors[0]))
-        return outputs
-
-
-
 
 class segnetDown2(nn.Module):
     def __init__(self, in_size, out_size):

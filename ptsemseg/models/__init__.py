@@ -9,6 +9,7 @@ from ptsemseg.models.xnet import *
 from ptsemseg.models.pspnet import *
 from ptsemseg.models.icnet import *
 from ptsemseg.models.linknet import *
+from ptsemseg.models.linknet3d import *
 from ptsemseg.models.frrn import *
 
 
@@ -67,6 +68,7 @@ def _get_model_instance(name):
             "icnet": icnet,
             "icnetBN": icnet,
             "linknet": linknet,
+            "linknet3d":linknet3d,
             "frrnA": frrn,
             "frrnB": frrn,
         }[name]

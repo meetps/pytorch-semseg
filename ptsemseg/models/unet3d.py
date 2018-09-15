@@ -5,7 +5,7 @@ def log(s):
 ###################
 import torch.nn as nn
 
-from ptsemseg.models.utils import *
+from .utils3d import *
 
 
 class unet3d(nn.Module):
