@@ -1,5 +1,5 @@
 model:
-    arch: linknet3d
+    arch: linknet3d_exp
 data:
     dataset: miccai2008
     train_split: train
@@ -7,20 +7,21 @@ data:
     img_rows: 'same'
     img_cols: 'same'
     mods: ['FLAIR','T1','T2']
+    macroblock_num_along_one_dim: 2
     path: "/media/machine/Storage/Dataset/BrainLesion/MICCAI2008Split/train&val/"
 training:
     train_iters: 300000
-    patch_size: 160  #160 for unet3d #192 for linknet3d
-    batch_size: 1
-    val_interval: 1
-    n_workers: 4
+    patch_size: 96  #160 for unet3d #192 for linknet3d
+    batch_size: 7
+    val_interval: 20
+    n_workers: 2
     cross_entropy_ratio: 0.003
     print_interval: 1
     print_interval_per_batch: False
     augmentations:
     optimizer:
         name: 'adam'
-        lr: 0.001
+        lr: 0.01
         weight_decay: 0.0005
         #momentum: 0.99
     loss:

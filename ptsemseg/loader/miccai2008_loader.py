@@ -63,17 +63,23 @@ class miccai2008Loader(data.Dataset):
         img_norm=True,
         split_info=None,
         patch_size=None,
-        mods=None
+        mods=None,
+            macroblock_num_along_one_dim=None
     ):
         self.root = root
         self.is_transform = is_transform
         self.n_classes = 2
+
         self.augmentations = augmentations
         self.split_info = split_info
-        self.patch_size = 512 if patch_size is None else patch_size
+        self.patch_size = 256 if patch_size is None else patch_size
 
         self.cmap = self.color_map(normalized=False)
         self.mods = mods
+
+        self.macroblock_num_along_one_dim = macroblock_num_along_one_dim
+        self.macroblock_len_along_one_dim = 256 / macroblock_num_along_one_dim
+        self.n_macroblocks = macroblock_num_along_one_dim ** 3
 
         self.split = split
         self.load_data()
@@ -82,9 +88,16 @@ class miccai2008Loader(data.Dataset):
         return len(self.anno_files[self.split])
     def normalize(self, img):
         return (img - img.min()) / (img.max() - img.min())
+    def assign_macroblock_class_index(self, centroid):
+        index = [loc // self.macroblock_len_along_one_dim for loc in centroid]
+        macroblock_class = int(index[0] * self.macroblock_num_along_one_dim ** 2 \
+                           + index[1] * self.macroblock_num_along_one_dim \
+                           + index[2])
+        return macroblock_class
     def randomCrop3D(self, img, lbl):
         idx = 0
-        thresh = 25
+        thresh = -1 # NO THRESHOLDING DUETO THE LOC_NETWORK
+        patch_radias = self.patch_size // 2
         while True:
             x = random.randint(0, img.shape[0] - self.patch_size)
             y = random.randint(0, img.shape[1] - self.patch_size)
@@ -92,9 +105,10 @@ class miccai2008Loader(data.Dataset):
             lbl_cropped = lbl[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size]
             if lbl_cropped.sum() > thresh:
                 img_cropped = img[x:x + self.patch_size, y:y + self.patch_size, z:z + self.patch_size, :]
-                return img_cropped, lbl_cropped
+                if idx > 0:
+                    print('Online Sampling Failed({})[numLesion < {}]'.format(idx, thresh))
+                return img_cropped, lbl_cropped, (x+patch_radias, y+patch_radias,z+patch_radias)
             idx += 1
-            print('Online Sampling Failed({})[{} < {}]'.format(idx, lbl_cropped.sum(), thresh))
     def __getitem__(self, index):
         st = time.time()
         img_path = {mod : self.files[self.split][mod][index] for mod in self.mods}
@@ -124,7 +138,8 @@ class miccai2008Loader(data.Dataset):
         #print(img.shape, lbl.shape, np.unique(img), np.unique(lbl), img.dtype, lbl.dtype)
 
         # RandomCrop to patchsize
-        img, lbl = self.randomCrop3D(img, lbl)
+        img, lbl, centroid_coordinates = self.randomCrop3D(img, lbl)
+        macroblock_class = self.assign_macroblock_class_index(centroid_coordinates)
         log((lbl_path, img.shape, lbl.shape))
 
         # augmentation specified in [yml]
@@ -134,19 +149,20 @@ class miccai2008Loader(data.Dataset):
 
         # transform   #input: xyzc => output:cxyz
         if self.is_transform:
-            img, lbl = self.transform(img, lbl)
+            img, lbl, macroblock_class = self.transform(img, lbl, macroblock_class)
 
         log((img.shape, lbl.shape))
         log((index, self.split, lbl_path, 'loadingTime:{}'.format(time.time()-st)))
         #print(img.shape, lbl.shape, np.unique(img), np.unique(lbl))
-        return img, lbl, case_idx
+        return img, lbl, case_idx, macroblock_class
 
-    def transform(self, img, lbl):
+    def transform(self, img, lbl, macroblock_class):
         img = img.astype(np.float64)
         img = img.transpose(3, 0, 1, 2)
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
-        return img, lbl
+        macroblock_class = torch.tensor(macroblock_class)
+        return img, lbl, macroblock_class
 
     def color_map(self, N=256, normalized=False):
         """

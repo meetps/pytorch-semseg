@@ -36,6 +36,11 @@ def prep_class_val_weights(ratio):
     display("CE's Weight:{}".format(weight_foreback))
     return weight_foreback
 ###################
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.kaiming_normal_(m.weight.data)
+##################
 import os
 import subprocess
 import sys
@@ -95,15 +100,23 @@ def train(cfg, writer, logger):
         is_transform=True,
         split=cfg['data']['train_split'],
         img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']),
-        augmentations=data_aug, split_info = split_info, patch_size = cfg['training']['patch_size'], mods = cfg['data']['mods'])
+        augmentations=data_aug,
+        split_info = split_info, patch_size = cfg['training']['patch_size'],
+        mods = cfg['data']['mods'],
+        macroblock_num_along_one_dim=cfg['data']['macroblock_num_along_one_dim'])
 
     v_loader = data_loader(
         data_path,
         is_transform=True,
         split=cfg['data']['val_split'],
-        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']), split_info = split_info, patch_size = cfg['training']['patch_size'], mods = cfg['data']['mods'])
+        img_size=(cfg['data']['img_rows'], cfg['data']['img_cols']),
+        split_info = split_info, patch_size = cfg['training']['patch_size'],
+        mods = cfg['data']['mods'],
+        macroblock_num_along_one_dim=cfg['data']['macroblock_num_along_one_dim'])
 
     n_classes = t_loader.n_classes
+    n_macroblocks = t_loader.n_macroblocks
+    print('NumOfMacroBlocks:{}'.format(n_macroblocks))
     trainloader = data.DataLoader(t_loader,
                                   batch_size=cfg['training']['batch_size'], 
                                   num_workers=cfg['training']['n_workers'], 
@@ -117,8 +130,8 @@ def train(cfg, writer, logger):
     running_metrics_val = runningScore(n_classes)
 
     # Setup Model
-    model = get_model(cfg['model'], n_classes).to(device)
-
+    model = get_model(cfg['model'], n_classes, n_macroblocks).to(device)
+    model.apply(weights_init)
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
 
     # Setup optimizer, lr_scheduler and loss function
@@ -134,6 +147,7 @@ def train(cfg, writer, logger):
     loss_fn = get_loss_function(cfg)
     logger.info("Using loss {}".format(loss_fn))
     softmax_function = nn.Softmax(dim=1)
+    criterion_mb = nn.CrossEntropyLoss()
 
     start_iter = 0
     if cfg['training']['resume'] is not None:
@@ -154,7 +168,9 @@ def train(cfg, writer, logger):
         else:
             logger.info("No checkpoint found at '{}'".format(cfg['training']['resume']))
 
-    val_loss_meter = averageMeter()
+    val_loss_total_meter = averageMeter()
+    val_loss_seg_meter = averageMeter()
+    val_loss_loc_meter = averageMeter()
     time_meter = averageMeter()
 
     best_iou = -100.0
@@ -164,38 +180,59 @@ def train(cfg, writer, logger):
     while i_train_iter < cfg['training']['train_iters']:
         i_batch_idx = 0
         train_iter_start_time = time.time()
-        for (images, labels, case_index_list) in trainloader:
+        '''
+        model.train()
+        optimizer.zero_grad()
+        BIGLOSS = None
+        '''
+        for (images, labels, case_index_list, macroblock_labels) in trainloader:
             start_ts_network = time.time()
             scheduler.step()
             model.train()
             images = images.to(device)
             labels = labels.to(device)
+            macroblock_labels = macroblock_labels.to(device)
 
             optimizer.zero_grad()
-            outputs_FM = model(images)
+            (outputs_FM, outputs_mb) = model(images)
+
             #print('Unique on labels:{}'.format(np.unique(labels.data.cpu().numpy())))    #[0, 1]
             #print('Unique on outputs:{}'.format(np.unique(outputs_FM.data.cpu().numpy())))  #[-1.15, +0.39]
             log('TrainIter=> images.size():{} labels.size():{} | outputs.size():{}'.format(images.size(), labels.size(), outputs_FM.size()))
-            loss = loss_fn(input=outputs_FM, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average']) #Input:FM, Softmax is built with crossentropy loss fucntion
-
-            loss.backward()
+            loss_seg = loss_fn(input=outputs_FM, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average']) #Input:FM, Softmax is built with crossentropy loss fucntion
+            loss_loc = criterion_mb(outputs_mb, macroblock_labels)
+            loss_total = loss_seg + loss_loc
+            '''
+            if BIGLOSS is None:
+                BIGLOSS = loss_total
+            else:
+                BIGLOSS += loss_total
+            '''
+            #loss_total.backward()
+            loss_loc.backward()
             optimizer.step()
             
             time_meter.update(time.time() - start_ts_network)
 
             print_per_batch_check = True if cfg['training']['print_interval_per_batch'] else i_batch_idx+1 == len(trainloader)
             if (i_train_iter + 1) % cfg['training']['print_interval'] == 0 and print_per_batch_check:
-                fmt_str = "Iter [{:d}/{:d}::{:d}/{:d}]  Loss: {:.4f}  NetworkTime/Image: {:.4f}"
+                fmt_str = "Iter [{:d}/{:d}::{:d}/{:d}]  [Loss: {:.4f} | Loss_seg: {:.4f} + Loss_loc: {:.4f}]  NetworkTime/Image: {:.4f}"
                 print_str = fmt_str.format(i_train_iter + 1,
                                            cfg['training']['train_iters'],
                                            i_batch_idx+1, len(trainloader),
-                                           loss.item(),
+                                           loss_total.item(),loss_seg.item(),loss_loc.item(),
                                            time_meter.avg / cfg['training']['batch_size'])
 
                 display(print_str)
-                writer.add_scalar('loss/train_loss', loss.item(), i_train_iter+1)
+                writer.add_scalar('loss/train_loss_total', loss_total.item(), i_train_iter+1)
+                writer.add_scalar('loss/train_loss_seg', loss_seg.item(), i_train_iter + 1)
+                writer.add_scalar('loss/train_loss_loc', loss_loc.item(), i_train_iter + 1)
                 time_meter.reset()
             i_batch_idx += 1
+        '''
+        BIGLOSS.backward()
+        optimizer.step()
+        '''
         entire_time_all_cases = time.time()-train_iter_start_time
         display('EntireTime for {}th training iteration: {:.4f}   EntireTime/Image: {:.4f}'.format(i_train_iter+1,
                                                                                                  entire_time_all_cases,
@@ -208,24 +245,30 @@ def train(cfg, writer, logger):
         else:
             model.eval()
             with torch.no_grad():
-                for i_val, (images_val, labels_val, case_index_list_val) in enumerate(valloader):
+                for i_val, (images_val, labels_val, case_index_list_val, macroblock_labels_val) in enumerate(valloader):
                     images_val = images_val.to(device)
                     labels_val = labels_val.to(device)
+                    macroblock_labels_val = macroblock_labels_val.to(device)
 
-                    outputs_FM_val = model(images_val)
-
+                    (outputs_FM_val, outputs_mb_val) = model(images_val)
                     log('ValIter=> images_val.size():{} labels_val.size():{} | outputs.size():{}'.format(images_val.size(),
                                                                                                          labels_val.size(),
                                                                                                          outputs_FM_val.size()))#Input:FM, Softmax is built with crossentropy loss fucntion
 
-                    val_loss = loss_fn(input=outputs_FM_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
+                    val_loss_seg = loss_fn(input=outputs_FM_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
+                    val_loss_loc = criterion_mb(outputs_mb_val, macroblock_labels_val)
+                    val_loss_total = val_loss_seg + val_loss_loc
 
                     outputs_CLASS_val = outputs_FM_val.data.max(1)[1]
+                    outputs_mbCLASS_val = outputs_mb_val.data.max(1)[1]
                     outputs_PROB_val = softmax_function(outputs_FM_val.data)
                     outputs_lesionPROB_val = outputs_PROB_val[:, 1, :, :, :]
 
-                    running_metrics_val.update(labels_val.data.cpu().numpy(), outputs_CLASS_val.cpu().numpy())
-                    val_loss_meter.update(val_loss.item())
+                    running_metrics_val.update(labels_val.data.cpu().numpy(), outputs_CLASS_val.cpu().numpy(),
+                                               macroblock_labels_val.cpu().numpy(), outputs_mbCLASS_val.cpu().numpy())
+                    val_loss_total_meter.update(val_loss_total.item())
+                    val_loss_seg_meter.update(val_loss_seg.item())
+                    val_loss_loc_meter.update(val_loss_loc.item())
 
 
                     '''
@@ -261,16 +304,22 @@ def train(cfg, writer, logger):
                             #slice_list = [image_slice, output_lesionFM_slice, output_lesionPROB_slice, output_CLASS_slice, label_slice]
                             slice_grid = make_grid(slice_list, padding=20)
                             tensor_grid.append(slice_grid)
+                        if len(tensor_grid) == 0:
+                            continue
                         tensorboard_image_tensor = make_grid(tensor_grid, nrow=int(math.sqrt(len(tensor_grid)/6))+1, padding=0).permute(1, 2, 0).cpu().numpy()
                         writer.add_image(case_index, tensorboard_image_tensor, i_train_iter+1)
-            writer.add_scalar('loss/val_loss', val_loss_meter.avg, i_train_iter+1)
-            logger.info("Iter %d Loss: %.4f" % (i_train_iter + 1, val_loss_meter.avg))
+            writer.add_scalar('loss/val_loss_total', val_loss_total_meter.avg, i_train_iter+1)
+            writer.add_scalar('loss/val_loss_seg', val_loss_seg_meter.avg, i_train_iter + 1)
+            writer.add_scalar('loss/val_loss_loc', val_loss_loc_meter.avg, i_train_iter + 1)
+            logger.info("Iter %d Loss_total: %.4f" % (i_train_iter + 1, val_loss_total_meter.avg))
+            logger.info("Iter %d Loss_seg: %.4f" % (i_train_iter + 1, val_loss_seg_meter.avg))
+            logger.info("Iter %d Loss_loc: %.4f" % (i_train_iter + 1, val_loss_loc_meter.avg))
 
             '''
                 This CODE-BLOCK is used to calculate and update the evaluation matrcs 
             '''
             score, class_iou = running_metrics_val.get_scores()
-            print('\x1b[1;32;44mValidationDataLoaded')
+            print('\x1b[1;32;44mValidationDataLoaded-EXPINDEX={}'.format(run_id))
             for k, v in score.items():
                 print(k, v)
                 logger.info('{}: {}'.format(k, v))
@@ -282,7 +331,9 @@ def train(cfg, writer, logger):
                 logger.info('{}: {}'.format(k, v))
                 writer.add_scalar('val_metrics/cls_{}'.format(k), v, i_train_iter+1)
             print('\x1b[0m\n')
-            val_loss_meter.reset()
+            val_loss_total_meter.reset()
+            val_loss_seg_meter.reset()
+            val_loss_loc_meter.reset()
             running_metrics_val.reset()
 
             '''
