@@ -180,11 +180,6 @@ def train(cfg, writer, logger):
     while i_train_iter < cfg['training']['train_iters']:
         i_batch_idx = 0
         train_iter_start_time = time.time()
-        '''
-        model.train()
-        optimizer.zero_grad()
-        BIGLOSS = None
-        '''
         for (images, labels, case_index_list, macroblock_labels) in trainloader:
             start_ts_network = time.time()
             scheduler.step()
@@ -199,17 +194,11 @@ def train(cfg, writer, logger):
             #print('Unique on labels:{}'.format(np.unique(labels.data.cpu().numpy())))    #[0, 1]
             #print('Unique on outputs:{}'.format(np.unique(outputs_FM.data.cpu().numpy())))  #[-1.15, +0.39]
             log('TrainIter=> images.size():{} labels.size():{} | outputs.size():{}'.format(images.size(), labels.size(), outputs_FM.size()))
-            loss_seg = loss_fn(input=outputs_FM, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average']) #Input:FM, Softmax is built with crossentropy loss fucntion
+            loss_seg = cfg['training']['loss_balance_ratio'] * loss_fn(input=outputs_FM, target=labels, weight=weight, size_average=cfg['training']['loss']['size_average']) #Input:FM, Softmax is built with crossentropy loss fucntion
             loss_loc = criterion_mb(outputs_mb, macroblock_labels)
             loss_total = loss_seg + loss_loc
-            '''
-            if BIGLOSS is None:
-                BIGLOSS = loss_total
-            else:
-                BIGLOSS += loss_total
-            '''
-            #loss_total.backward()
-            loss_loc.backward()
+
+            loss_total.backward()
             optimizer.step()
             
             time_meter.update(time.time() - start_ts_network)
@@ -229,10 +218,6 @@ def train(cfg, writer, logger):
                 writer.add_scalar('loss/train_loss_loc', loss_loc.item(), i_train_iter + 1)
                 time_meter.reset()
             i_batch_idx += 1
-        '''
-        BIGLOSS.backward()
-        optimizer.step()
-        '''
         entire_time_all_cases = time.time()-train_iter_start_time
         display('EntireTime for {}th training iteration: {:.4f}   EntireTime/Image: {:.4f}'.format(i_train_iter+1,
                                                                                                  entire_time_all_cases,
@@ -255,7 +240,7 @@ def train(cfg, writer, logger):
                                                                                                          labels_val.size(),
                                                                                                          outputs_FM_val.size()))#Input:FM, Softmax is built with crossentropy loss fucntion
 
-                    val_loss_seg = loss_fn(input=outputs_FM_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
+                    val_loss_seg = cfg['training']['loss_balance_ratio'] * loss_fn(input=outputs_FM_val, target=labels_val, weight=weight, size_average=cfg['training']['loss']['size_average'])
                     val_loss_loc = criterion_mb(outputs_mb_val, macroblock_labels_val)
                     val_loss_total = val_loss_seg + val_loss_loc
 

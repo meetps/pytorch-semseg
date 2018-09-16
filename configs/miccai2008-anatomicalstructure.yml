@@ -15,7 +15,8 @@ training:
     batch_size: 7
     val_interval: 20
     n_workers: 2
-    cross_entropy_ratio: 0.003
+    cross_entropy_ratio: 0.03
+    loss_balance_ratio: 1
     print_interval: 1
     print_interval_per_batch: False
     augmentations:
