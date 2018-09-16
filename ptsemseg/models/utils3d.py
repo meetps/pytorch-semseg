@@ -83,6 +83,29 @@ class residualBlock3D(nn.Module):
         out += residual
         out = self.relu(out)
         return out
+class residualBlock3D_LOC(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_channels, n_filters, stride=1, downsample=None):
+        super(residualBlock3D_LOC, self).__init__()
+
+        self.convbnrelu1 = conv3DBatchNormRelu(in_channels, n_filters, 3,  stride, 1, bias=False)
+        self.convbn2 = conv3DBatchNorm(n_filters, n_filters, 3, 1, 1, bias=False)
+        self.downsample = downsample
+        self.stride = stride
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        residual = x
+
+        out = self.convbnrelu1(x)
+        out = self.convbn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        return out
 class deconv3DBatchNormRelu(nn.Module):
     def __init__(self, in_channels, n_filters, k_size, stride, padding, bias=True):
         super(deconv3DBatchNormRelu, self).__init__()

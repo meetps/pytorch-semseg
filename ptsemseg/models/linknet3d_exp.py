@@ -5,7 +5,7 @@ import torchvision.models as models
 
 from .utils3d import *
 
-Resnets = {'resnet18' :{'layers':[2, 2, 2, 2],'filters':[64, 128, 256, 512], 'block':residualBlock3D,'expansion':1},
+Resnets = {'resnet18' :{'layers':[2, 2, 2, 2],'filters':[64, 128, 256, 512], 'block':residualBlock3D_LOC,'expansion':1},  # pay attension that relut is missed
            'resnet34' :{'layers':[3, 4, 6, 3],'filters':[64, 128, 256, 512], 'block':residualBlock3D,'expansion':1},
            'resnet50' :{'layers':[3, 4, 6, 3],'filters':[64, 128, 256, 512], 'block':residualBlock3D,'expansion':4},
            'resnet101' :{'layers':[3, 4, 23, 3],'filters':[64, 128, 256, 512], 'block':residualBlock3D,'expansion':4},
@@ -53,9 +53,16 @@ class linknet3d_exp(nn.Module):
         self.decoder1 = linknetUp3D(filters[0] * expansion, filters[0])
 
 
+
         # macroblock classification
+        self.relu = nn.ReLU(inplace=True)
         self.n_macroblocks = n_macroblocks
-        self.linear = nn.Linear(filters[3], self.n_macroblocks)
+        #self.linear = nn.Linear(filters[0]+filters[1]+filters[2]+filters[3], self.n_macroblocks)
+        self.linear = nn.Linear(filters[1]+filters[2]+filters[3], self.n_macroblocks)
+        self.downsample2 = conv3DBatchNorm(filters[0], filters[1], k_size=1, stride=2, padding=0, bias=False)
+        self.downsample3 = conv3DBatchNorm(filters[1], filters[2], k_size=1, stride=2, padding=0, bias=False)
+        self.downsample4 = conv3DBatchNorm(filters[2], filters[3], k_size=1, stride=2, padding=0, bias=False)
+
 
         # Final Classifier
         self.finaldeconvbnrelu1 = deconv3DBatchNormRelu(filters[0], 32/feature_scale, 2, 2, 0)
@@ -73,43 +80,63 @@ class linknet3d_exp(nn.Module):
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)
-    def fusion(selfs, f1, f2):
-        return f1 + f2
+    def fusion(selfs, f1, f2, f3):
+        return f1 - f2 + f3
         #return torch.cat([f1, f2], 1)
     def forward(self, input):
         # Encoder
         network_log('linknet3d=>input.size():{}'.format(input.size()), color_idx=1)
         input1 = self.convbnrelu1(input)
-        network_log('linknet3d=>input1.size():{}'.format(input1.size()), color_idx=1)
-        input2 = self.maxpool(input1)
-        network_log('linknet3d=>input2.size():{}'.format(input2.size()), color_idx=1)
-        e1 = self.encoder1(input2)
-        network_log('linknet3d=>e1.size():{}'.format(e1.size()), color_idx=2)
-        e2 = self.encoder2(e1)
-        network_log('linknet3d=>e2.size():{}'.format(e2.size()), color_idx=2)
-        e3 = self.encoder3(e2)
-        network_log('linknet3d=>e3.size():{}'.format(e3.size()), color_idx=2)
-        e4 = self.encoder4(e3)
-        network_log('linknet3d=>e4.size():{}'.format(e4.size()), color_idx=2)
+        network_log('[ConvFirst]\nlinknet3d=>input1.size():{}'.format(input1.size()), color_idx=1)
+        input1_downsample = self.maxpool(input1)
+        network_log('linknet3d=>input1_downsample.size():{}'.format(input1_downsample.size()), color_idx=1)
+
+        e1 = self.encoder1(input1_downsample)
+        network_log('[EB1]\nlinknet3d=>e1.size():{}'.format(e1.size()), color_idx=2)
+        e1_fusion = self.relu(e1 + input1_downsample)
+        network_log('linknet3d=>e1_fusion.size():{}'.format(e1_fusion.size()), color_idx=2)
+
+        e2 = self.encoder2(e1_fusion)
+        network_log('[EB2]\nlinknet3d=>e2.size():{}'.format(e2.size()), color_idx=2)
+        e1_fusion_downsample = self.downsample2(e1_fusion)
+        network_log('linknet3d=>e1_fusion_downsample.size():{}'.format(e1_fusion_downsample.size()), color_idx=2)
+        e2_fusion = self.relu(e2 + e1_fusion_downsample)
+        network_log('linknet3d=>e2_fusion.size():{}'.format(e2_fusion.size()), color_idx=2)
+
+        e3 = self.encoder3(e2_fusion)
+        network_log('[EB3]\nlinknet3d=>e3.size():{}'.format(e3.size()), color_idx=2)
+        e2_fusion_downsample = self.downsample3(e2_fusion)
+        network_log('linknet3d=>e2_fusion_downsample.size():{}'.format(e2_fusion_downsample.size()), color_idx=2)
+        e3_fusion = self.relu(e3 + e2_fusion_downsample)
+        network_log('linknet3d=>e3_fusion.size():{}'.format(e3_fusion.size()), color_idx=2)
+
+        e4 = self.encoder4(e3_fusion)
+        network_log('[EB4]\nlinknet3d=>e4.size():{}'.format(e4.size()), color_idx=2)
+        e3_fusion_downsample = self.downsample4(e3_fusion)
+        network_log('linknet3d=>e3_fusion_downsample.size():{}'.format(e3_fusion_downsample.size()), color_idx=2)
+        e4_fusion = self.relu(e4 + e3_fusion_downsample)
+        network_log('linknet3d=>e4_fusion.size():{}'.format(e4_fusion.size()), color_idx=2)
 
         #d4 = self.decoder4(e4) + e3
-        d4 = self.decoder4(e4)
+        d4 = self.decoder4(e4_fusion)
         network_log('linknet3d=>d4.size():{}'.format(d4.size()), color_idx=1)
-        d4_fusion = self.fusion(d4, e3)
-        network_log('linknet3d=>d4_cat.size():{}'.format(d4_fusion.size()), color_idx=1)
 
+        d4_fusion = self.fusion(d4, e2_fusion_downsample, e3)
+        network_log('linknet3d=>d4_cat.size():{}'.format(d4_fusion.size()), color_idx=1)
         d3 = self.decoder3(d4_fusion)
         network_log('linknet3d=>d3.size():{}'.format(d3.size()), color_idx=1)
-        d3_fusion = self.fusion(d3, e2)
-        network_log('linknet3d=>d3_cat.size():{}'.format(d3_fusion.size()), color_idx=1)
 
+        d3_fusion = self.fusion(d3, e1_fusion_downsample, e2)
+        network_log('linknet3d=>d3_cat.size():{}'.format(d3_fusion.size()), color_idx=1)
         d2 = self.decoder2(d3_fusion)
         network_log('linknet3d=>d2.size():{}'.format(d2.size()), color_idx=1)
-        d2_fusion = self.fusion(d2, e1)
-        network_log('linknet3d=>d2_cat.size():{}'.format(d2_fusion.size()), color_idx=1)
 
+        d2_fusion = self.fusion(d2, input1_downsample, e1)
+        network_log('linknet3d=>d2_cat.size():{}'.format(d2_fusion.size()), color_idx=1)
         d1 = self.decoder1(d2_fusion)
         network_log('linknet3d=>d1.size():{}'.format(d1.size()), color_idx=1)
+
+
         f1 = self.finaldeconvbnrelu1(d1)
         network_log('linknet3d=>f1.size():{}'.format(f1.size()), color_idx=2)
         f2 = self.finalconvbnrelu2(f1)
@@ -117,8 +144,33 @@ class linknet3d_exp(nn.Module):
         f3 = self.finalconv3(f2)
         network_log('linknet3d=>f3.size():{}'.format(f3.size()), color_idx=2)
 
-        mb4 = F.max_pool3d(e4, kernel_size=e4.size()[2:])
-        mb4_flatten = mb4.view(-1, mb4.size()[1])
-        mb = self.linear(mb4_flatten)
-        network_log('linknet3d=>mb.size():{}'.format(mb.size()), color_idx=1)
-        return f3, mb
+
+        #mb0 = F.max_pool3d(input1_downsample, kernel_size=input1_downsample.size()[2:])
+        mb1 = F.max_pool3d(e1_fusion_downsample, kernel_size=e1_fusion_downsample.size()[2:])
+        mb2 = F.max_pool3d(e2_fusion_downsample, kernel_size=e2_fusion_downsample.size()[2:])
+        mb3 = F.max_pool3d(e3_fusion_downsample, kernel_size=e3_fusion_downsample.size()[2:])
+        #mb_fusion = torch.cat([mb0, mb1, mb2, mb3], dim=1)
+        mb_fusion = torch.cat([mb1, mb2, mb3], dim=1)
+        mb_fusion_flatten = mb_fusion.view(-1, mb_fusion.size()[1])
+        mb_final = self.linear(mb_fusion_flatten)
+        #print(mb0.size(), mb1.size(), mb2.size(), mb3.size(), mb_fusion_flatten.size(), mb_final.size())
+        '''
+        network_log('linknet3d=>input1_downsample.size():{}'.format(input1_downsample.size()), color_idx=1)
+        network_log('linknet3d=>e1_fusion_downsample.size():{}'.format(e1_fusion_downsample.size()), color_idx=1)
+        network_log('linknet3d=>e2_fusion_downsample.size():{}'.format(e2_fusion_downsample.size()), color_idx=1)
+        network_log('linknet3d=>e3_fusion_downsample.size():{}'.format(e3_fusion_downsample.size()), color_idx=1)
+        # splitline
+        network_log('linknet3d=>inputs2.size():{}'.format(input2.size()), color_idx=1)
+        mb1 = F.max_pool3d(e1, kernel_size=e1.size()[2:])
+        network_log('linknet3d=>mb1.size():{}'.format(mb1.size()), color_idx=1)
+        mb1_flatten = mb1.view(-1, mb1.size()[1])
+        mb2 = F.max_pool3d(e2, kernel_size=e2.size()[2:])
+        network_log('linknet3d=>mb2.size():{}'.format(mb2.size()), color_idx=1)
+        mb2_flatten = mb2.view(-1, mb2.size()[1])
+        mb3 = F.max_pool3d(e3, kernel_size=e3.size()[2:])
+        network_log('linknet3d=>mb3.size():{}'.format(mb3.size()), color_idx=1)
+        mb3_flatten = mb3.view(-1, mb3.size()[1])
+        # mb4 = F.max_pool3d(e4, kernel_size=e4.size()[2:])
+        # mb4_flatten = mb4.view(-1, mb4.size()[1])
+        '''
+        return f3, mb_final
