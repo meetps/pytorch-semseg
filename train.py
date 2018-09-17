@@ -156,7 +156,7 @@ def train(cfg, writer, logger):
                         labels_val = labels_val.to(device)
 
                         outputs = model(images_val)
-                        val_loss = loss_fn(input=outputs, target=labels)
+                        val_loss = loss_fn(input=outputs, target=labels_val)
 
                         pred = outputs.data.max(1)[1].cpu().numpy()
                         gt = labels_val.data.cpu().numpy()
