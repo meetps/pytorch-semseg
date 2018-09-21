@@ -80,8 +80,8 @@ class linknet3d_exp(nn.Module):
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
         return nn.Sequential(*layers)
-    def fusion(selfs, f1, f2, f3):
-        return f1 - f2 + f3
+    def fusion(selfs, f1, f2):
+        return f1 + f2
         #return torch.cat([f1, f2], 1)
     def forward(self, input):
         # Encoder
@@ -121,17 +121,17 @@ class linknet3d_exp(nn.Module):
         d4 = self.decoder4(e4_fusion)
         network_log('linknet3d=>d4.size():{}'.format(d4.size()), color_idx=1)
 
-        d4_fusion = self.fusion(d4, e2_fusion_downsample, e3)
+        d4_fusion = self.fusion(d4, e3_fusion)
         network_log('linknet3d=>d4_cat.size():{}'.format(d4_fusion.size()), color_idx=1)
         d3 = self.decoder3(d4_fusion)
         network_log('linknet3d=>d3.size():{}'.format(d3.size()), color_idx=1)
 
-        d3_fusion = self.fusion(d3, e1_fusion_downsample, e2)
+        d3_fusion = self.fusion(d3, e2_fusion)
         network_log('linknet3d=>d3_cat.size():{}'.format(d3_fusion.size()), color_idx=1)
         d2 = self.decoder2(d3_fusion)
         network_log('linknet3d=>d2.size():{}'.format(d2.size()), color_idx=1)
 
-        d2_fusion = self.fusion(d2, input1_downsample, e1)
+        d2_fusion = self.fusion(d2, e1_fusion)
         network_log('linknet3d=>d2_cat.size():{}'.format(d2_fusion.size()), color_idx=1)
         d1 = self.decoder1(d2_fusion)
         network_log('linknet3d=>d1.size():{}'.format(d1.size()), color_idx=1)

@@ -4,7 +4,7 @@ def log(s):
         print(s)
 ###################
 from scipy.ndimage.interpolation import zoom as im_zoom
-import nrrd
+import numpy as np
 from glob import glob
 import random
 import os
@@ -23,7 +23,7 @@ from ptsemseg.utils import recursive_glob
 from ptsemseg.augmentations import *
 
 
-class miccai2008Loader(data.Dataset):
+class sashaLoader(data.Dataset):
     def load_data(self):
         if self.split=='train':
             print('#####\nTrain&Val:{}\nValidationData[{}]:'.format(len(self.split_info['case_index']),
@@ -33,11 +33,10 @@ class miccai2008Loader(data.Dataset):
         self.files = {'train':{key: [] for key in self.mods}, 'val':{key: [] for key in self.mods}}
         self.anno_files ={'train':[], 'val':[]}
         for lesion_path in self.split_info['file_paths']:
-            curr_case_index = lesion_path.split('/')[-1].split('_lesion')[0]
+            curr_case_index = lesion_path.split('/')[-1].split('-GT')[0]
             curr_split= 'val' if curr_case_index in self.split_info['val_case_index'] else 'train'
             for mod in self.mods:
-                #self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + 'nhdr')[0]) # preprocessing_incompleted
-                self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + '_preprocessed.npy')[0]) # preprocessing_completed
+                self.files[curr_split][mod].append(glob(self.root + curr_case_index + '*' + mod + '*' + '.npy')[0])
             self.anno_files[curr_split].append(lesion_path)
         if self.split=='train':
             if False:
@@ -45,13 +44,13 @@ class miccai2008Loader(data.Dataset):
                 print('TRAIN')
                 for mod in self.mods:
                     print('-{}[{}]'.format(mod, len(self.files['train'][mod])),
-                          [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.files['train'][mod]])
-                print('-annot[{}]'.format(len(self.anno_files['train'])), [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.anno_files['train']])
+                          [path.split('/')[-1].replace('_preprocessed','').split('.')[0] for path in self.files['train'][mod]])
+                print('-annot[{}]'.format(len(self.anno_files['train'])), [path.split('/')[-1].replace('_preprocessed','').split('.')[0] for path in self.anno_files['train']])
                 print('VAL')
                 for mod in self.mods:
                     print('-{}[{}]'.format(mod, len(self.files['val'][mod])),
-                          [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.files['val'][mod]])
-                print('-annot[{}]'.format(len(self.anno_files['val'])), [path.split('/')[-1].replace('_train_','_').split('.')[0] for path in self.anno_files['val']])
+                          [path.split('/')[-1].replace('_preprocessed','').split('.')[0] for path in self.files['val'][mod]])
+                print('-annot[{}]'.format(len(self.anno_files['val'])), [path.split('/')[-1].replace('_preprocessed','').split('.')[0] for path in self.anno_files['val']])
 
     def __init__(
         self,
@@ -113,25 +112,9 @@ class miccai2008Loader(data.Dataset):
         st = time.time()
         img_path = {mod : self.files[self.split][mod][index] for mod in self.mods}
         lbl_path = self.anno_files[self.split][index]
-        case_idx = lbl_path.split('/')[-1].split('_lesion')[0]
+        case_idx = lbl_path.split('/')[-1].split('-GT')[0]
         # load 4d tensor and lbl
-        '''
-        # preprocessing_incompleted
-        imgs = []
-        for mod in self.mods:
-            img = nrrd.read(img_path[mod])[0].astype(float)
-            print('start')
-            if self.img_resize is not None:
-                img = im_zoom(img, zoom=self.img_resize, mode="nearest")
-            print('end')
-            img = self.normalize(img)  # scan_normalization
-            imgs.append(img)
-        img = np.stack(imgs, axis = 3) # xyz * channels
-        lbl = nrrd.read(lbl_path)[0].astype(float)
-        if self.img_resize is not None:
-            lbl = im_zoom(lbl, zoom=self.img_resize, mode="nearest")
-        lbl = np.array(lbl, dtype=np.uint8)
-        '''
+
         # preprocessing_completed
         img = np.stack([np.load(img_path[mod]) for mod in self.mods], axis=3)  # xyz * channels
         lbl = np.load(lbl_path)

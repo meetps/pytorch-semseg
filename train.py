@@ -10,7 +10,7 @@ def display(string):
 import math
 from glob import glob
 import random
-def init_data_split(root):
+def init_data_split_miccai2008(root):
     # init_train_val_split
     #file_paths = glob(root + '*_lesion*.nhdr')  # preprocessing_incompleted
     file_paths = glob(root + '*_lesion*_preprocessed.npy')  # preprocessing_completed
@@ -27,6 +27,22 @@ def init_data_split(root):
     val_case_index.extend(val_case_index_CHB)
     val_case_index.extend(val_case_index_UNC)
     return {'file_paths': file_paths, 'val_case_index': val_case_index, 'case_index':case_index}
+def init_data_split_sasha(root):
+    file_paths = glob(root + '*GT_preprocessed.npy')
+    ratio = 0.15
+    case_index_withTP = [path.split('/')[-1].split('-GT')[0] for path in file_paths]
+    case_index_noTP = list(set([path.split('/')[-1].split('_')[0] for path in file_paths]))
+    random.shuffle(case_index_noTP)
+    val_case_index_noTP = case_index_noTP[:int(ratio * (len(case_index_noTP)))]
+    val_case_index_withTP = []
+    for case_index in case_index_withTP:
+        for val_case_index in val_case_index_noTP:
+            if val_case_index in case_index:
+                val_case_index_withTP.append(case_index)
+                break
+    val_case_index_withTP.sort()
+    case_index_withTP.sort()
+    return {'file_paths': file_paths, 'val_case_index': val_case_index_withTP, 'case_index':case_index_withTP}
 ###################
 def prep_class_val_weights(ratio):
     weight_foreback = torch.ones(2)
@@ -72,7 +88,10 @@ from tensorboardX import SummaryWriter
 
 def train(cfg, writer, logger):
     # Setup dataset split before setting up the seed for random
-    split_info = init_data_split(cfg['data']['path'])  # miccai2008 dataset
+    if cfg['data']['dataset'] == 'miccai2008':
+        split_info = init_data_split_miccai2008(cfg['data']['path'])  # miccai2008 dataset
+    elif cfg['data']['dataset'] == 'sasha':
+        split_info = init_data_split_sasha(cfg['data']['path'])  # miccai2008 dataset
 
     # Setup seeds
     torch.manual_seed(cfg.get('seed', 1337))
@@ -350,7 +369,8 @@ if __name__ == "__main__":
         "--config",
         nargs="?",
         type=str,
-        default="configs/miccai2008-anatomicalstructure.yml",
+        #default="configs/miccai2008-anatomicalstructure.yml",
+        default="configs/sasha.yml",
         help="Configuration file to use"
     )
 

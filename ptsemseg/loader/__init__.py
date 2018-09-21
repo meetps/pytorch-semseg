@@ -11,6 +11,7 @@ from ptsemseg.loader.nyuv2_loader import NYUv2Loader
 from ptsemseg.loader.sunrgbd_loader import SUNRGBDLoader
 from ptsemseg.loader.mapillary_vistas_loader import mapillaryVistasLoader
 from ptsemseg.loader.miccai2008_loader import miccai2008Loader
+from ptsemseg.loader.sasha_loader import sashaLoader
 
 
 def get_loader(name):
@@ -27,7 +28,8 @@ def get_loader(name):
         "nyuv2": NYUv2Loader,
         "sunrgbd": SUNRGBDLoader,
         "vistas": mapillaryVistasLoader,
-        "miccai2008":miccai2008Loader
+        "miccai2008":miccai2008Loader,
+        "sasha": sashaLoader
     }[name]
 
 
