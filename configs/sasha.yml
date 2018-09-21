@@ -13,16 +13,16 @@ training:
     train_iters: 300000
     patch_size: 96  #160 for unet3d #192 for linknet3d
     batch_size: 7
-    val_interval: 20
+    val_interval: 5
     n_workers: 2
-    cross_entropy_ratio: 0.003
-    loss_balance_ratio: 1
+    cross_entropy_ratio: 0.001
+    loss_balance_ratio: 100
     print_interval: 1
     print_interval_per_batch: False
-    augmentations:
+    augmentations: ['flip3d', 'rotate3d']
     optimizer:
         name: 'adam'
-        lr: 0.03
+        lr: 0.1
         weight_decay: 0.0005
         #momentum: 0.99
     loss:

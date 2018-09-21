@@ -80,7 +80,7 @@ from ptsemseg.loss import get_loss_function
 from ptsemseg.loader import get_loader
 from ptsemseg.utils import get_logger
 from ptsemseg.metrics import runningScore, averageMeter
-from ptsemseg.augmentations import get_composed_augmentations
+from ptsemseg.augmentations import get_composed_augmentations3d
 from ptsemseg.schedulers import get_scheduler
 from ptsemseg.optimizers import get_optimizer
 
@@ -107,8 +107,8 @@ def train(cfg, writer, logger):
 
     # Setup Augmentations
     augmentations = cfg['training'].get('augmentations', None)
-    log(('augmentations_cfg:', augmentations))
-    data_aug = get_composed_augmentations(augmentations)
+    print(('augmentations_cfg:', augmentations))
+    data_aug = get_composed_augmentations3d(augmentations)
 
 
     # Setup Dataloader
