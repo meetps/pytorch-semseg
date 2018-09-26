@@ -10,11 +10,9 @@ from ptsemseg.models.linknet import *
 from ptsemseg.models.frrn import *
 
 
-def get_model(model_dict, n_classes, version=None):
-    name = model_dict['arch']
+def get_model(name, n_classes, version=None):
     model = _get_model_instance(name)
-    param_dict = copy.deepcopy(model_dict)
-    param_dict.pop('arch')
+    param_dict = {}
 
     if name in ["frrnA", "frrnB"]:
         model = model(n_classes, **param_dict)
