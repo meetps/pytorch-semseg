@@ -63,7 +63,8 @@ class miccai2008Loader(data.Dataset):
         img_norm=True,
         split_info=None,
         patch_size=None,
-        mods=None
+        mods=None,
+            macroblock_num_along_one_dim=None
     ):
         self.root = root
         self.is_transform = is_transform
@@ -76,6 +77,10 @@ class miccai2008Loader(data.Dataset):
         self.cmap = self.color_map(normalized=False)
         self.mods = mods
 
+        self.macroblock_num_along_one_dim = macroblock_num_along_one_dim
+        self.macroblock_len_along_one_dim = 256 / macroblock_num_along_one_dim
+        self.n_macroblocks = macroblock_num_along_one_dim ** 3
+
         self.split = split
         self.load_data()
         self.anno_files[self.split] = self.anno_files[self.split]#[:2] ## DEBUG
@@ -83,7 +88,12 @@ class miccai2008Loader(data.Dataset):
         return len(self.anno_files[self.split])
     def normalize(self, img):
         return (img - img.min()) / (img.max() - img.min())
-
+    def assign_macroblock_class_index(self, centroid):
+        index = [loc // self.macroblock_len_along_one_dim for loc in centroid]
+        macroblock_class = int(index[0] * self.macroblock_num_along_one_dim ** 2 \
+                           + index[1] * self.macroblock_num_along_one_dim \
+                           + index[2])
+        return macroblock_class
     def randomCrop3D(self, img, lbl):
         idx = 0
         thresh = 100# # NO THRESHOLDING DUETO THE LOC_NETWORK
@@ -129,6 +139,7 @@ class miccai2008Loader(data.Dataset):
 
         # RandomCrop to patchsize
         img, lbl, centroid_coordinates = self.randomCrop3D(img, lbl)
+        macroblock_class = self.assign_macroblock_class_index(centroid_coordinates)
         log((lbl_path, img.shape, lbl.shape))
 
         # augmentation specified in [yml]
@@ -138,20 +149,20 @@ class miccai2008Loader(data.Dataset):
 
         # transform   #input: xyzc => output:cxyz
         if self.is_transform:
-            img, lbl= self.transform(img, lbl)
+            img, lbl, macroblock_class = self.transform(img, lbl, macroblock_class)
 
         log((img.shape, lbl.shape))
         log((index, self.split, lbl_path, 'loadingTime:{}'.format(time.time()-st)))
         #print(img.shape, lbl.shape, np.unique(img), np.unique(lbl))
-        return img, lbl, case_idx
+        return img, lbl, case_idx, macroblock_class
 
-    def transform(self, img, lbl):
+    def transform(self, img, lbl, macroblock_class):
         img = img.astype(np.float64)
         img = img.transpose(3, 0, 1, 2)
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()
-
-        return img, lbl
+        macroblock_class = torch.tensor(macroblock_class)
+        return img, lbl, macroblock_class
 
     def color_map(self, N=256, normalized=False):
         """

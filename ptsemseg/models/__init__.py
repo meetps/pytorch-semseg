@@ -11,6 +11,7 @@ from ptsemseg.models.icnet import *
 from ptsemseg.models.linknet import *
 from ptsemseg.models.linknet3d import *
 from ptsemseg.models.linknet3d_exp import *
+from ptsemseg.models.linknet3d_SE_baseline import *
 from ptsemseg.models.frrn import *
 
 
@@ -41,6 +42,8 @@ def get_model(model_dict, n_classes, n_macroblocks=None, version=None):
         model = model(n_classes=n_classes, **param_dict)
     elif name == "linknet3d_exp":
         model = model(n_classes=n_classes, n_macroblocks=n_macroblocks, **param_dict)
+    elif name == "linknet3d_SE_baseline":
+        model = model(n_classes=n_classes)
 
     elif name == "pspnet":
         model = model(n_classes=n_classes, **param_dict)
@@ -73,6 +76,7 @@ def _get_model_instance(name):
             "linknet": linknet,
             "linknet3d":linknet3d,
             "linknet3d_exp": linknet3d_exp,
+            "linknet3d_SE_baseline": linknet3d_SE_baseline,
             "frrnA": frrn,
             "frrnB": frrn,
         }[name]

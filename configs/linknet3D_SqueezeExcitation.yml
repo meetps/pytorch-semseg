@@ -1,28 +1,27 @@
 model:
-    arch: linknet3d_exp
+    arch: linknet3d_SE_baseline
 data:
-    dataset: sasha_MB
+    dataset: miccai2008
     train_split: train
     val_split: val
     img_rows: 'same'
     img_cols: 'same'
-    mods: ['FLAIR', 'T1', 'FLAIR']
-    macroblock_num_along_one_dim: 2
-    path: "/media/machine/Storage/Dataset/BrainLesion/sashaSplit/train&val/"
+    mods: ['FLAIR','T1','T2']
+    path: "/media/machine/Storage/Dataset/BrainLesion/MICCAI2008Split/train&val/"
 training:
     train_iters: 300000
-    patch_size: 96  #160 for unet3d #192 for linknet3d
-    batch_size: 4
-    val_interval: 10
+    patch_size: 192  #160 for unet3d #192 for linknet3d
+    batch_size: 1
+    val_interval: 2
     n_workers: 2
-    cross_entropy_ratio: 0.001
+    cross_entropy_ratio: 0.003
     loss_balance_ratio: 1
     print_interval: 1
     print_interval_per_batch: False
-    augmentations: ['flip3d', 'rotate3d']
+    augmentations:
     optimizer:
         name: 'adam'
-        lr: 0.01
+        lr: 0.03
         weight_decay: 0.0005
         #momentum: 0.99
     loss:

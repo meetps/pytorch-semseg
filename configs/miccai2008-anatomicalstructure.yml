@@ -1,7 +1,7 @@
 model:
     arch: linknet3d_exp
 data:
-    dataset: miccai2008
+    dataset: miccai2008_MB
     train_split: train
     val_split: val
     img_rows: 'same'

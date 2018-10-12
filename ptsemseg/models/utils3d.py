@@ -1,5 +1,5 @@
-DEBUG=False
-colors = ['\x1b[0m', '\x1b[6;30;42m', '\x1b[2;30;41m']
+DEBUG = False
+colors = ['\x1b[0m', '\x1b[6;30;42m', '\x1b[2;30;41m', '\x1b[2;33;44m']
 def network_log(s, color_idx=None):
     if DEBUG:
         if color_idx is None:
