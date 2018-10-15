@@ -84,7 +84,7 @@ class fcn32s(nn.Module):
 
         score = self.classifier(conv5)
 
-        out = F.upsample_bilinear(score, x.size()[2:])
+        out = F.upsample(score, x.size()[2:])
 
         return out
 
@@ -201,9 +201,9 @@ class fcn16s(nn.Module):
         score = self.classifier(conv5)
         score_pool4 = self.score_pool4(conv4)
 
-        score = F.upsample_bilinear(score, score_pool4.size()[2:])
+        score = F.upsample(score, score_pool4.size()[2:])
         score += score_pool4
-        out = F.upsample_bilinear(score, x.size()[2:])
+        out = F.upsample(score, x.size()[2:])
 
         return out
 
@@ -349,11 +349,11 @@ class fcn8s(nn.Module):
         else:
             score_pool4 = self.score_pool4(conv4)
             score_pool3 = self.score_pool3(conv3)
-            score = F.upsample_bilinear(score, score_pool4.size()[2:])
+            score = F.upsample(score, score_pool4.size()[2:])
             score += score_pool4
-            score = F.upsample_bilinear(score, score_pool3.size()[2:])
+            score = F.upsample(score, score_pool3.size()[2:])
             score += score_pool3
-            out = F.upsample_bilinear(score, x.size()[2:])
+            out = F.upsample(score, x.size()[2:])
 
         return out
 
