@@ -51,6 +51,7 @@ This repository aims at mirroring popular semantic segmentation architectures in
 * visdom >=1.0.1 (for loss and results visualization)
 * scipy
 * tqdm
+* tensorboardX
 
 #### One-line installation
     

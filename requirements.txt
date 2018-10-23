@@ -7,3 +7,4 @@ tqdm==4.11.2
 visdom==0.1.1
 pydensecrf
 protobuf
+tensorboardX
