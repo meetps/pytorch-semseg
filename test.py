@@ -1,6 +1,5 @@
 import sys, os
 import torch
-import visdom
 import argparse
 import timeit
 import numpy as np

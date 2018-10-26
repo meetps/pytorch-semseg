@@ -48,7 +48,6 @@ This repository aims at mirroring popular semantic segmentation architectures in
 
 * pytorch >=0.4.0
 * torchvision ==0.2.0
-* visdom >=1.0.1 (for loss and results visualization)
 * scipy
 * tqdm
 * tensorboardX
@@ -60,16 +59,10 @@ This repository aims at mirroring popular semantic segmentation architectures in
 ### Data
 
 * Download data for desired dataset(s) from list of URLs [here](https://meetshah1995.github.io/semantic-segmentation/deep-learning/pytorch/visdom/2017/06/01/semantic-segmentation-over-the-years.html#sec_datasets).
-* Extract the zip / tar and modify the path appropriately in `config.json`
+* Extract the zip / tar and modify the path appropriately in `config.yaml`
 
 
 ### Usage
-
-Launch [visdom](https://github.com/facebookresearch/visdom#launch) by running (in a separate terminal window)
-
-```
-python -m visdom.server
-```
 
 **To train the model :**
 

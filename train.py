@@ -4,7 +4,6 @@ import yaml
 import time
 import shutil
 import torch
-import visdom
 import random
 import argparse
 import datetime
