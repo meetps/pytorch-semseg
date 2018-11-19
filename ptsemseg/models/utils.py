@@ -3,8 +3,6 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-from torch.autograd import Variable
-
 
 class conv2DBatchNorm(nn.Module):
     def __init__(
@@ -572,7 +570,7 @@ class pyramidPooling(nn.Module):
                 # out = F.adaptive_avg_pool2d(x, output_size=(pool_size, pool_size))
                 if self.model_name != "icnet":
                     out = module(out)
-                out = F.upsample(out, size=(h, w), mode="bilinear")
+                out = F.interpolate(out, size=(h, w), mode="bilinear", align_corners=True)
                 output_slices.append(out)
 
             return torch.cat(output_slices, dim=1)
@@ -586,7 +584,7 @@ class pyramidPooling(nn.Module):
                 # out = F.adaptive_avg_pool2d(x, output_size=(pool_size, pool_size))
                 if self.model_name != "icnet":
                     out = module(out)
-                out = F.upsample(out, size=(h, w), mode="bilinear")
+                out = F.interpolate(out, size=(h, w), mode="bilinear", align_corners=True)
                 pp_sum = pp_sum + out
 
             return pp_sum
@@ -791,8 +789,8 @@ class cascadeFeatureFusion(nn.Module):
         )
 
     def forward(self, x_low, x_high):
-        x_low_upsampled = F.upsample(
-            x_low, size=get_interp_size(x_low, z_factor=2), mode="bilinear"
+        x_low_upsampled = F.interpolate(
+            x_low, size=get_interp_size(x_low, z_factor=2), mode="bilinear", align_corners=True
         )
 
         low_cls = self.low_classifier_conv(x_low_upsampled)
@@ -824,16 +822,13 @@ def interp(input, output_size, mode="bilinear"):
     oh, ow = output_size
 
     # normalize to [-1, 1]
-    h = torch.arange(0, oh) / (oh - 1) * 2 - 1
-    w = torch.arange(0, ow) / (ow - 1) * 2 - 1
+    h = torch.arange(0, oh, dtype=torch.float, device='cuda' if input.is_cuda else 'cpu') / (oh - 1) * 2 - 1
+    w = torch.arange(0, ow, dtype=torch.float, device='cuda' if input.is_cuda else 'cpu') / (ow - 1) * 2 - 1
 
-    grid = torch.zeros(oh, ow, 2)
+    grid = torch.zeros(oh, ow, 2, dtype=torch.float, device='cuda' if input.is_cuda else 'cpu')
     grid[:, :, 0] = w.unsqueeze(0).repeat(oh, 1)
     grid[:, :, 1] = h.unsqueeze(0).repeat(ow, 1).transpose(0, 1)
     grid = grid.unsqueeze(0).repeat(n, 1, 1, 1)  # grid.shape: [n, oh, ow, 2]
-    grid = Variable(grid)
-    if input.is_cuda:
-        grid = grid.cuda()
 
     return F.grid_sample(input, grid, mode=mode)
 
