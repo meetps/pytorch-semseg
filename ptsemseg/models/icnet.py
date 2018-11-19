@@ -179,7 +179,7 @@ class icnet(nn.Module):
         h, w = x.shape[2:]
 
         # H, W -> H/2, W/2
-        x_sub2 = interp(x, output_size=get_interp_size(x, s_factor=2))
+        x_sub2 = F.interpolate(x, size=get_interp_size(x, s_factor=2), mode='bilinear', align_corners=True)
 
         # H/2, W/2 -> H/4, W/4
         x_sub2 = self.convbnrelu1_1(x_sub2)
@@ -193,7 +193,7 @@ class icnet(nn.Module):
         x_sub2 = self.res_block2(x_sub2)
         x_sub2 = self.res_block3_conv(x_sub2)
         # H/16, W/16 -> H/32, W/32
-        x_sub4 = interp(x_sub2, output_size=get_interp_size(x_sub2, s_factor=2))
+        x_sub4 = F.interpolate(x_sub2, size=get_interp_size(x_sub2, s_factor=2), mode='bilinear', align_corners=True)
         x_sub4 = self.res_block3_identity(x_sub4)
 
         x_sub4 = self.res_block4(x_sub4)
@@ -209,18 +209,19 @@ class icnet(nn.Module):
         x_sub24, sub4_cls = self.cff_sub24(x_sub4, x_sub2)
         x_sub12, sub24_cls = self.cff_sub12(x_sub24, x_sub1)
 
-        x_sub12 = F.upsample(
-            x_sub12, size=get_interp_size(x_sub12, z_factor=2), mode="bilinear"
+        x_sub12 = F.interpolate(
+            x_sub12, size=get_interp_size(x_sub12, z_factor=2), mode="bilinear", align_corners=True
         )
         sub124_cls = self.classification(x_sub12)
 
         if self.training:
-            return sub4_cls, sub24_cls, sub124_cls
+            return (sub124_cls, sub24_cls, sub4_cls)
         else:  # eval mode
-            sub124_cls = F.upsample(
+            sub124_cls = F.interpolate(
                 sub124_cls,
                 size=get_interp_size(sub124_cls, z_factor=4),
                 mode="bilinear",
+                align_corners=True
             )  # Test only
             return sub124_cls
 

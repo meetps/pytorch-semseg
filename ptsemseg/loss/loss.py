@@ -11,10 +11,10 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
     # Handle inconsistent size between input and target
     if h > ht and w > wt:  # upsample labels
         target = target.unsequeeze(1)
-        target = F.upsample(target, size=(h, w), mode="nearest")
+        target = F.interpolate(target.float(), size=(h, w), mode="nearest").long()
         target = target.sequeeze(1)
     elif h < ht and w < wt:  # upsample images
-        input = F.upsample(input, size=(ht, wt), mode="bilinear")
+        input = F.interpolate(input, size=(ht, wt), mode="bilinear", align_corners=True)
     elif h != ht and w != wt:
         raise Exception("Only support upsampling")
 
@@ -33,7 +33,7 @@ def multi_scale_cross_entropy2d(
     if scale_weight == None:  # scale_weight: torch tensor type
         n_inp = len(input)
         scale = 0.4
-        scale_weight = torch.pow(scale * torch.ones(n_inp), torch.arange(n_inp))
+        scale_weight = torch.pow(scale * torch.ones(n_inp), torch.arange(n_inp).float()).to('cuda' if input.is_cuda else 'cpu')
 
     loss = 0.0
     for i, inp in enumerate(input):
