@@ -10,9 +10,9 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
 
     # Handle inconsistent size between input and target
     if h > ht and w > wt:  # upsample labels
-        target = target.unsequeeze(1)
+        target = target.unsqueeze(1)
         target = F.interpolate(target.float(), size=(h, w), mode="nearest").long()
-        target = target.sequeeze(1)
+        target = target.squeeze(1)
     elif h < ht and w < wt:  # upsample images
         input = F.interpolate(input, size=(ht, wt), mode="bilinear", align_corners=True)
     elif h != ht and w != wt:
@@ -29,6 +29,9 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
 def multi_scale_cross_entropy2d(
     input, target, weight=None, size_average=True, scale_weight=None
 ):
+    if not isinstance(input, tuple): # when evaluation
+        return cross_entropy2d(input=input, target=target, weight=weight, size_average=size_average)
+
     # Auxiliary training for PSPNet [1.0, 0.4] and ICNet [1.0, 0.4, 0.16]
     if scale_weight == None:  # scale_weight: torch tensor type
         n_inp = len(input)
