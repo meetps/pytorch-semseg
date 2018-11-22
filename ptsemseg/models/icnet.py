@@ -37,12 +37,12 @@ class icnet(nn.Module):
         block_config=[3, 4, 6, 3],
         input_size=(1025, 2049),
         version=None,
-        with_bn=True,
+        is_batchnorm=True,
     ):
 
         super(icnet, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.block_config = (
             icnet_specs[version]["block_config"]
@@ -64,7 +64,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu1_2 = conv2DBatchNormRelu(
             in_channels=32,
@@ -73,7 +73,7 @@ class icnet(nn.Module):
             padding=1,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu1_3 = conv2DBatchNormRelu(
             in_channels=32,
@@ -82,12 +82,12 @@ class icnet(nn.Module):
             padding=1,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # Vanilla Residual Blocks
         self.res_block2 = residualBlockPSP(
-            self.block_config[0], 64, 32, 128, 1, 1, with_bn=with_bn
+            self.block_config[0], 64, 32, 128, 1, 1, is_batchnorm=is_batchnorm
         )
         self.res_block3_conv = residualBlockPSP(
             self.block_config[1],
@@ -97,7 +97,7 @@ class icnet(nn.Module):
             2,
             1,
             include_range="conv",
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.res_block3_identity = residualBlockPSP(
             self.block_config[1],
@@ -107,20 +107,20 @@ class icnet(nn.Module):
             2,
             1,
             include_range="identity",
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # Dilated Residual Blocks
         self.res_block4 = residualBlockPSP(
-            self.block_config[2], 256, 128, 512, 1, 2, with_bn=with_bn
+            self.block_config[2], 256, 128, 512, 1, 2, is_batchnorm=is_batchnorm
         )
         self.res_block5 = residualBlockPSP(
-            self.block_config[3], 512, 256, 1024, 1, 4, with_bn=with_bn
+            self.block_config[3], 512, 256, 1024, 1, 4, is_batchnorm=is_batchnorm
         )
 
         # Pyramid Pooling Module
         self.pyramid_pooling = pyramidPooling(
-            1024, [6, 3, 2, 1], model_name="icnet", fusion_mode="sum", with_bn=with_bn
+            1024, [6, 3, 2, 1], model_name="icnet", fusion_mode="sum", is_batchnorm=is_batchnorm
         )
 
         # Final conv layer with kernel 1 in sub4 branch
@@ -131,7 +131,7 @@ class icnet(nn.Module):
             padding=0,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # High-resolution (sub1) branch
@@ -142,7 +142,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu2_sub1 = conv2DBatchNormRelu(
             in_channels=32,
@@ -151,7 +151,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu3_sub1 = conv2DBatchNormRelu(
             in_channels=32,
@@ -160,16 +160,16 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.classification = nn.Conv2d(128, self.n_classes, 1, 1, 0)
 
         # Cascade Feature Fusion Units
         self.cff_sub24 = cascadeFeatureFusion(
-            self.n_classes, 256, 256, 128, with_bn=with_bn
+            self.n_classes, 256, 256, 128, is_batchnorm=is_batchnorm
         )
         self.cff_sub12 = cascadeFeatureFusion(
-            self.n_classes, 128, 64, 128, with_bn=with_bn
+            self.n_classes, 128, 64, 128, is_batchnorm=is_batchnorm
         )
 
         # Define auxiliary loss function
@@ -499,7 +499,7 @@ if __name__ == "__main__":
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
 
-    ic = icnet(version="cityscapes", with_bn=False)
+    ic = icnet(version="cityscapes", is_batchnorm=False)
 
     # Just need to do this one time
     caffemodel_dir_path = "PATH_TO_ICNET_DIR/evaluation/model"
