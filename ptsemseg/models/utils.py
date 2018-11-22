@@ -14,7 +14,7 @@ class conv2DBatchNorm(nn.Module):
         padding,
         bias=True,
         dilation=1,
-        with_bn=True,
+        is_batchnorm=True,
     ):
         super(conv2DBatchNorm, self).__init__()
 
@@ -26,7 +26,7 @@ class conv2DBatchNorm(nn.Module):
                              bias=bias,
                              dilation=dilation,)
 
-        if with_bn:
+        if is_batchnorm:
             self.cb_unit = nn.Sequential(conv_mod, nn.BatchNorm2d(int(n_filters)))
         else:
             self.cb_unit = nn.Sequential(conv_mod)
@@ -97,7 +97,7 @@ class conv2DBatchNormRelu(nn.Module):
         padding,
         bias=True,
         dilation=1,
-        with_bn=True,
+        is_batchnorm=True,
     ):
         super(conv2DBatchNormRelu, self).__init__()
 
@@ -109,7 +109,7 @@ class conv2DBatchNormRelu(nn.Module):
                              bias=bias,
                              dilation=dilation,)
 
-        if with_bn:
+        if is_batchnorm:
             self.cbr_unit = nn.Sequential(conv_mod, 
                                           nn.BatchNorm2d(int(n_filters)), 
                                           nn.ReLU(inplace=True))
@@ -522,11 +522,11 @@ class pyramidPooling(nn.Module):
         pool_sizes,
         model_name="pspnet",
         fusion_mode="cat",
-        with_bn=True,
+        is_batchnorm=True,
     ):
         super(pyramidPooling, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.paths = []
         for i in range(len(pool_sizes)):
@@ -538,7 +538,7 @@ class pyramidPooling(nn.Module):
                     1,
                     0,
                     bias=bias,
-                    with_bn=with_bn,
+                    is_batchnorm=is_batchnorm,
                 )
             )
 
@@ -592,11 +592,11 @@ class pyramidPooling(nn.Module):
 
 class bottleNeckPSP(nn.Module):
     def __init__(
-        self, in_channels, mid_channels, out_channels, stride, dilation=1, with_bn=True
+        self, in_channels, mid_channels, out_channels, stride, dilation=1, is_batchnorm=True
     ):
         super(bottleNeckPSP, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.cbr1 = conv2DBatchNormRelu(
             in_channels,
@@ -605,7 +605,7 @@ class bottleNeckPSP(nn.Module):
             stride=1,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         if dilation > 1:
             self.cbr2 = conv2DBatchNormRelu(
@@ -616,7 +616,7 @@ class bottleNeckPSP(nn.Module):
                 padding=dilation,
                 bias=bias,
                 dilation=dilation,
-                with_bn=with_bn,
+                is_batchnorm=is_batchnorm,
             )
         else:
             self.cbr2 = conv2DBatchNormRelu(
@@ -627,7 +627,7 @@ class bottleNeckPSP(nn.Module):
                 padding=1,
                 bias=bias,
                 dilation=1,
-                with_bn=with_bn,
+                is_batchnorm=is_batchnorm,
             )
         self.cb3 = conv2DBatchNorm(
             mid_channels,
@@ -636,7 +636,7 @@ class bottleNeckPSP(nn.Module):
             stride=1,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.cb4 = conv2DBatchNorm(
             in_channels,
@@ -645,7 +645,7 @@ class bottleNeckPSP(nn.Module):
             stride=stride,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
     def forward(self, x):
@@ -655,10 +655,10 @@ class bottleNeckPSP(nn.Module):
 
 
 class bottleNeckIdentifyPSP(nn.Module):
-    def __init__(self, in_channels, mid_channels, stride, dilation=1, with_bn=True):
+    def __init__(self, in_channels, mid_channels, stride, dilation=1, is_batchnorm=True):
         super(bottleNeckIdentifyPSP, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.cbr1 = conv2DBatchNormRelu(
             in_channels,
@@ -667,7 +667,7 @@ class bottleNeckIdentifyPSP(nn.Module):
             stride=1,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         if dilation > 1:
             self.cbr2 = conv2DBatchNormRelu(
@@ -678,7 +678,7 @@ class bottleNeckIdentifyPSP(nn.Module):
                 padding=dilation,
                 bias=bias,
                 dilation=dilation,
-                with_bn=with_bn,
+                is_batchnorm=is_batchnorm,
             )
         else:
             self.cbr2 = conv2DBatchNormRelu(
@@ -689,7 +689,7 @@ class bottleNeckIdentifyPSP(nn.Module):
                 padding=1,
                 bias=bias,
                 dilation=1,
-                with_bn=with_bn,
+                is_batchnorm=is_batchnorm,
             )
         self.cb3 = conv2DBatchNorm(
             mid_channels,
@@ -698,7 +698,7 @@ class bottleNeckIdentifyPSP(nn.Module):
             stride=1,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
     def forward(self, x):
@@ -717,7 +717,7 @@ class residualBlockPSP(nn.Module):
         stride,
         dilation=1,
         include_range="all",
-        with_bn=True,
+        is_batchnorm=True,
     ):
         super(residualBlockPSP, self).__init__()
 
@@ -734,14 +734,14 @@ class residualBlockPSP(nn.Module):
                     out_channels,
                     stride,
                     dilation,
-                    with_bn=with_bn,
+                    is_batchnorm=is_batchnorm,
                 )
             )
         if include_range in ["all", "identity"]:
             for i in range(n_blocks - 1):
                 layers.append(
                     bottleNeckIdentifyPSP(
-                        out_channels, mid_channels, stride, dilation, with_bn=with_bn
+                        out_channels, mid_channels, stride, dilation, is_batchnorm=is_batchnorm
                     )
                 )
 
@@ -753,11 +753,11 @@ class residualBlockPSP(nn.Module):
 
 class cascadeFeatureFusion(nn.Module):
     def __init__(
-        self, n_classes, low_in_channels, high_in_channels, out_channels, with_bn=True
+        self, n_classes, low_in_channels, high_in_channels, out_channels, is_batchnorm=True
     ):
         super(cascadeFeatureFusion, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.low_dilated_conv_bn = conv2DBatchNorm(
             low_in_channels,
@@ -767,7 +767,7 @@ class cascadeFeatureFusion(nn.Module):
             padding=2,
             bias=bias,
             dilation=2,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.low_classifier_conv = nn.Conv2d(
             int(low_in_channels),
@@ -785,7 +785,7 @@ class cascadeFeatureFusion(nn.Module):
             stride=1,
             padding=0,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
     def forward(self, x_low, x_high):
