@@ -118,10 +118,10 @@ class pspnet(nn.Module):
         x = self.res_block3(x)
         x = self.res_block4(x)
 
-        # Auxiliary layers for training
-        x_aux = self.convbnrelu4_aux(x)
-        x_aux = self.dropout(x_aux)
-        x_aux = self.aux_cls(x_aux)
+        if self.training:  # Auxiliary layers for training
+            x_aux = self.convbnrelu4_aux(x)
+            x_aux = self.dropout(x_aux)
+            x_aux = self.aux_cls(x_aux)
 
         x = self.res_block5(x)
 
@@ -131,10 +131,10 @@ class pspnet(nn.Module):
         x = self.dropout(x)
 
         x = self.classification(x)
-        x = F.upsample(x, size=inp_shape, mode="bilinear")
+        x = F.interpolate(x, size=inp_shape, mode='bilinear', align_corners=True)
 
         if self.training:
-            return x_aux, x
+            return (x, x_aux)
         else:  # eval mode
             return x
 
