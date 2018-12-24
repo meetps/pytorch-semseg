@@ -1,30 +1,18 @@
 import torch
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 
-from math import ceil
 from torch.autograd import Variable
 
 from ptsemseg import caffe_pb2
-from ptsemseg.models.utils import *
-from ptsemseg.loss import *
+from ptsemseg.models.utils import conv2DBatchNormRelu, residualBlockPSP, pyramidPooling
+from ptsemseg.loss.loss import multi_scale_cross_entropy2d
 
 pspnet_specs = {
-    "pascal": {
-        "n_classes": 21,
-        "input_size": (473, 473),
-        "block_config": [3, 4, 23, 3],
-    },
-    "cityscapes": {
-        "n_classes": 19,
-        "input_size": (713, 713),
-        "block_config": [3, 4, 23, 3],
-    },
-    "ade20k": {
-        "n_classes": 150,
-        "input_size": (473, 473),
-        "block_config": [3, 4, 6, 3],
-    },
+    "pascal": {"n_classes": 21, "input_size": (473, 473), "block_config": [3, 4, 23, 3]},
+    "cityscapes": {"n_classes": 19, "input_size": (713, 713), "block_config": [3, 4, 23, 3]},
+    "ade20k": {"n_classes": 150, "input_size": (473, 473), "block_config": [3, 4, 6, 3]},
 }
 
 
@@ -45,26 +33,16 @@ class pspnet(nn.Module):
     """
 
     def __init__(
-        self,
-        n_classes=21,
-        block_config=[3, 4, 23, 3],
-        input_size=(473, 473),
-        version=None,
+        self, n_classes=21, block_config=[3, 4, 23, 3], input_size=(473, 473), version=None
     ):
 
         super(pspnet, self).__init__()
 
         self.block_config = (
-            pspnet_specs[version]["block_config"]
-            if version is not None
-            else block_config
+            pspnet_specs[version]["block_config"] if version is not None else block_config
         )
-        self.n_classes = (
-            pspnet_specs[version]["n_classes"] if version is not None else n_classes
-        )
-        self.input_size = (
-            pspnet_specs[version]["input_size"] if version is not None else input_size
-        )
+        self.n_classes = pspnet_specs[version]["n_classes"] if version is not None else n_classes
+        self.input_size = pspnet_specs[version]["input_size"] if version is not None else input_size
 
         # Encoder
         self.convbnrelu1_1 = conv2DBatchNormRelu(
@@ -119,9 +97,10 @@ class pspnet(nn.Module):
         x = self.res_block4(x)
 
         # Auxiliary layers for training
-        x_aux = self.convbnrelu4_aux(x)
-        x_aux = self.dropout(x_aux)
-        x_aux = self.aux_cls(x_aux)
+        if self.training:
+            x_aux = self.convbnrelu4_aux(x)
+            x_aux = self.dropout(x_aux)
+            x_aux = self.aux_cls(x_aux)
 
         x = self.res_block5(x)
 
@@ -131,10 +110,10 @@ class pspnet(nn.Module):
         x = self.dropout(x)
 
         x = self.classification(x)
-        x = F.upsample(x, size=inp_shape, mode="bilinear")
+        x = F.interpolate(x, size=inp_shape, mode="bilinear", align_corners=True)
 
         if self.training:
-            return x_aux, x
+            return (x, x_aux)
         else:  # eval mode
             return x
 
@@ -166,9 +145,7 @@ class pspnet(nn.Module):
                 return [weights, bias]
 
             elif ltype == "InnerProduct":
-                raise Exception(
-                    "Fully connected layers {}, not supported".format(ltype)
-                )
+                raise Exception("Fully connected layers {}, not supported".format(ltype))
 
             else:
                 raise Exception("Unkown layer type {}".format(ltype))
@@ -216,9 +193,7 @@ class pspnet(nn.Module):
             if len(bias) != 0:
                 b_shape = np.array(module.bias.size())
                 print(
-                    "CONV {}: Original {} and trans bias {}".format(
-                        layer_name, b_shape, bias.shape
-                    )
+                    "CONV {}: Original {} and trans bias {}".format(layer_name, b_shape, bias.shape)
                 )
                 module.bias.data.copy_(torch.from_numpy(bias).view_as(module.bias))
 
@@ -234,15 +209,9 @@ class pspnet(nn.Module):
                     conv_layer_name, bn_module.running_mean.size(), mean.shape
                 )
             )
-            bn_module.running_mean.copy_(
-                torch.from_numpy(mean).view_as(bn_module.running_mean)
-            )
-            bn_module.running_var.copy_(
-                torch.from_numpy(var).view_as(bn_module.running_var)
-            )
-            bn_module.weight.data.copy_(
-                torch.from_numpy(gamma).view_as(bn_module.weight)
-            )
+            bn_module.running_mean.copy_(torch.from_numpy(mean).view_as(bn_module.running_mean))
+            bn_module.running_var.copy_(torch.from_numpy(var).view_as(bn_module.running_var))
+            bn_module.weight.data.copy_(torch.from_numpy(gamma).view_as(bn_module.weight))
             bn_module.bias.data.copy_(torch.from_numpy(beta).view_as(bn_module.bias))
 
         def _transfer_residual(prefix, block):
@@ -265,9 +234,7 @@ class pspnet(nn.Module):
                     "_".join(
                         map(str, [prefix, layer_idx, "1x1_reduce"])
                     ): residual_layer.cbr1.cbr_unit,
-                    "_".join(
-                        map(str, [prefix, layer_idx, "3x3"])
-                    ): residual_layer.cbr2.cbr_unit,
+                    "_".join(map(str, [prefix, layer_idx, "3x3"])): residual_layer.cbr2.cbr_unit,
                     "_".join(
                         map(str, [prefix, layer_idx, "1x1_increase"])
                     ): residual_layer.cb3.cb_unit,
@@ -328,12 +295,8 @@ class pspnet(nn.Module):
         stride_x = (h - side_x) / float(n_x)
         stride_y = (w - side_y) / float(n_y)
 
-        x_ends = [
-            [int(i * stride_x), int(i * stride_x) + side_x] for i in range(n_x + 1)
-        ]
-        y_ends = [
-            [int(i * stride_y), int(i * stride_y) + side_y] for i in range(n_y + 1)
-        ]
+        x_ends = [[int(i * stride_x), int(i * stride_x) + side_x] for i in range(n_x + 1)]
+        y_ends = [[int(i * stride_y), int(i * stride_y) + side_y] for i in range(n_y + 1)]
 
         pred = np.zeros([n_samples, n_classes, h, w])
         count = np.zeros([h, w])
@@ -378,8 +341,6 @@ class pspnet(nn.Module):
 if __name__ == "__main__":
     cd = 0
     import os
-    from torch.autograd import Variable
-    import matplotlib.pyplot as plt
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
 
@@ -390,9 +351,11 @@ if __name__ == "__main__":
     psp.load_pretrained_model(
         model_path=os.path.join(caffemodel_dir_path, "pspnet101_cityscapes.caffemodel")
     )
-    # psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'pspnet50_ADE20K.caffemodel'))
-    # psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'pspnet101_VOC2012.caffemodel'))
-
+    # psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path,
+    #                            'pspnet50_ADE20K.caffemodel'))
+    # psp.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path,
+    #                           'pspnet101_VOC2012.caffemodel'))
+    #
     # psp.load_state_dict(torch.load('psp.pth'))
 
     psp.float()

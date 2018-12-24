@@ -1,4 +1,3 @@
-import os
 import collections
 import torch
 import torchvision
@@ -27,9 +26,7 @@ class ADE20KLoader(data.Dataset):
         self.augmentations = augmentations
         self.img_norm = img_norm
         self.n_classes = 150
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
 
@@ -61,9 +58,7 @@ class ADE20KLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -118,8 +113,8 @@ if __name__ == "__main__":
     local_path = "/Users/meet/data/ADE20K_2016_07_26/"
     dst = ADE20KLoader(local_path, is_transform=True)
     trainloader = data.DataLoader(dst, batch_size=4)
-    for i, data in enumerate(trainloader):
-        imgs, labels = data
+    for i, data_samples in enumerate(trainloader):
+        imgs, labels = data_samples
         if i == 0:
             img = torchvision.utils.make_grid(imgs).numpy()
             img = np.transpose(img, (1, 2, 0))

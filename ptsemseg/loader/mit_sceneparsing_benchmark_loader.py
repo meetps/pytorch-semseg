@@ -46,9 +46,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         self.augmentations = augmentations
         self.img_norm = img_norm
         self.n_classes = 151  # 0 is reserved for "other"
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = {}
 
@@ -58,9 +56,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".jpg")
 
         if not self.files[split]:
-            raise Exception(
-                "No files for split=[%s] found in %s" % (split, self.images_base)
-            )
+            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
 
         print("Found %d %s images" % (len(self.files[split]), split))
 
@@ -74,11 +70,9 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param index:
         """
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = os.path.join(
-            self.annotations_base, os.path.basename(img_path)[:-4] + ".png"
-        )
+        lbl_path = os.path.join(self.annotations_base, os.path.basename(img_path)[:-4] + ".png")
 
-        img = m.imread(img_path, mode='RGB')
+        img = m.imread(img_path, mode="RGB")
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
@@ -98,12 +92,10 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        if self.img_size == ('same', 'same'):
+        if self.img_size == ("same", "same"):
             pass
         else:
-            img = m.imresize(
-                img, (self.img_size[0], self.img_size[1])
-            )  # uint8 with RGB mode
+            img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -116,7 +108,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
 
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        if self.img_size == ('same', 'same'):
+        if self.img_size == ("same", "same"):
             pass
         else:
             lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")

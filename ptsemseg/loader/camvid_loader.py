@@ -1,13 +1,12 @@
 import os
 import collections
 import torch
-import torchvision
 import numpy as np
 import scipy.misc as m
 import matplotlib.pyplot as plt
 
 from torch.utils import data
-from ptsemseg.augmentations import *
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, raw_input
 
 
 class camvidLoader(data.Dataset):
@@ -57,9 +56,7 @@ class camvidLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -78,7 +75,6 @@ class camvidLoader(data.Dataset):
         Sky = [128, 128, 128]
         Building = [128, 0, 0]
         Pole = [192, 192, 128]
-        Road_marking = [255, 69, 0]
         Road = [128, 64, 128]
         Pavement = [60, 40, 222]
         Tree = [128, 128, 0]
@@ -127,8 +123,8 @@ if __name__ == "__main__":
     dst = camvidLoader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs)
-    for i, data in enumerate(trainloader):
-        imgs, labels = data
+    for i, data_samples in enumerate(trainloader):
+        imgs, labels = data_samples
         imgs = imgs.numpy()[:, ::-1, :, :]
         imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)

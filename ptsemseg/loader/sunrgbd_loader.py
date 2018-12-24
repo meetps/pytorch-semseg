@@ -1,28 +1,25 @@
-import os
 import collections
 import torch
-import torchvision
 import numpy as np
 import scipy.misc as m
-import scipy.io as io
-import matplotlib.pyplot as plt
 
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import *
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale, raw_input
 
 
 class SUNRGBDLoader(data.Dataset):
     """SUNRGBD loader
 
-    Download From: 
+    Download From:
     http://www.doc.ic.ac.uk/~ahanda/SUNRGBD-test_images.tgz
         test source: http://www.doc.ic.ac.uk/~ahanda/SUNRGBD-test_images.tgz
         train source: http://www.doc.ic.ac.uk/~ahanda/SUNRGBD-train_images.tgz
 
         first 5050 in this is test, later 5051 is train
-        test and train labels source: https://github.com/ankurhanda/sunrgbd-meta-data/raw/master/sunrgbd_train_test_labels.tar.gz
+        test and train labels source:
+        https://github.com/ankurhanda/sunrgbd-meta-data/raw/master/sunrgbd_train_test_labels.tar.gz
     """
 
     def __init__(
@@ -39,9 +36,7 @@ class SUNRGBDLoader(data.Dataset):
         self.n_classes = 38
         self.augmentations = augmentations
         self.img_norm = img_norm
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
         self.anno_files = collections.defaultdict(list)
@@ -51,16 +46,12 @@ class SUNRGBDLoader(data.Dataset):
         self.split = split_map[split]
 
         for split in ["train", "test"]:
-            file_list = sorted(
-                recursive_glob(rootdir=self.root + split + "/", suffix="jpg")
-            )
+            file_list = sorted(recursive_glob(rootdir=self.root + split + "/", suffix="jpg"))
             self.files[split] = file_list
 
         for split in ["train", "test"]:
             file_list = sorted(
-                recursive_glob(
-                    rootdir=self.root + "annotations/" + split + "/", suffix="png"
-                )
+                recursive_glob(rootdir=self.root + "annotations/" + split + "/", suffix="png")
             )
             self.anno_files[split] = file_list
 
@@ -91,9 +82,7 @@ class SUNRGBDLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -155,7 +144,6 @@ class SUNRGBDLoader(data.Dataset):
 
 
 if __name__ == "__main__":
-    import torchvision
     import matplotlib.pyplot as plt
 
     augmentations = Compose([Scale(512), RandomRotate(10), RandomHorizontallyFlip()])
@@ -164,8 +152,8 @@ if __name__ == "__main__":
     dst = SUNRGBDLoader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)
-    for i, data in enumerate(trainloader):
-        imgs, labels = data
+    for i, data_samples in enumerate(trainloader):
+        imgs, labels = data_samples
         imgs = imgs.numpy()[:, ::-1, :, :]
         imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)

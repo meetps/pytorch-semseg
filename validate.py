@@ -1,22 +1,14 @@
-import os
-import sys
 import yaml
 import torch
 import argparse
 import timeit
 import numpy as np
-import scipy.misc as misc
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.models as models
 
-from torch.backends import cudnn
 from torch.utils import data
 
-from tqdm import tqdm
 
 from ptsemseg.models import get_model
-from ptsemseg.loader import get_loader, get_data_path
+from ptsemseg.loader import get_loader
 from ptsemseg.metrics import runningScore
 from ptsemseg.utils import convert_state_dict
 
@@ -28,27 +20,24 @@ def validate(cfg, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Setup Dataloader
-    data_loader = get_loader(cfg['data']['dataset'])
-    data_path = cfg['data']['path']
+    data_loader = get_loader(cfg["data"]["dataset"])
+    data_path = cfg["data"]["path"]
 
     loader = data_loader(
         data_path,
-        split=cfg['data']['val_split'],
+        split=cfg["data"]["val_split"],
         is_transform=True,
-        img_size=(cfg['data']['img_rows'], 
-                  cfg['data']['img_rows']),
+        img_size=(cfg["data"]["img_rows"], cfg["data"]["img_cols"]),
     )
 
     n_classes = loader.n_classes
 
-    valloader = data.DataLoader(loader, 
-                                batch_size=cfg['training']['batch_size'], 
-                                num_workers=8)
+    valloader = data.DataLoader(loader, batch_size=cfg["training"]["batch_size"], num_workers=8)
     running_metrics = runningScore(n_classes)
 
     # Setup Model
 
-    model = get_model(cfg['model'], n_classes).to(device)
+    model = get_model(cfg["model"], n_classes).to(device)
     state = convert_state_dict(torch.load(args.model_path)["model_state"])
     model.load_state_dict(state)
     model.eval()

@@ -6,14 +6,14 @@ import torch.nn.functional as F
 from ptsemseg.models.utils import get_upsampling_weight
 from ptsemseg.loss import cross_entropy2d
 
+
 # FCN32s
 class fcn32s(nn.Module):
     def __init__(self, n_classes=21, learned_billinear=False):
         super(fcn32s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d,
-                                      size_average=False)
+        self.loss = functools.partial(cross_entropy2d, size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -74,7 +74,6 @@ class fcn32s(nn.Module):
         if self.learned_billinear:
             raise NotImplementedError
 
-
     def forward(self, x):
         conv1 = self.conv_block1(x)
         conv2 = self.conv_block2(conv1)
@@ -125,8 +124,7 @@ class fcn16s(nn.Module):
         super(fcn16s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d,
-                                      size_average=False)
+        self.loss = functools.partial(cross_entropy2d, size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -190,7 +188,6 @@ class fcn16s(nn.Module):
         if self.learned_billinear:
             raise NotImplementedError
 
-
     def forward(self, x):
         conv1 = self.conv_block1(x)
         conv2 = self.conv_block2(conv1)
@@ -246,8 +243,7 @@ class fcn8s(nn.Module):
         super(fcn8s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d,
-                                      size_average=False)
+        self.loss = functools.partial(cross_entropy2d, size_average=False)
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),
@@ -309,19 +305,21 @@ class fcn8s(nn.Module):
         self.score_pool3 = nn.Conv2d(256, self.n_classes, 1)
 
         if self.learned_billinear:
-            self.upscore2 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 4,
-                                               stride=2, bias=False)
-            self.upscore4 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 4,
-                                               stride=2, bias=False)
-            self.upscore8 = nn.ConvTranspose2d(self.n_classes, self.n_classes, 16,
-                                               stride=8, bias=False)
+            self.upscore2 = nn.ConvTranspose2d(
+                self.n_classes, self.n_classes, 4, stride=2, bias=False
+            )
+            self.upscore4 = nn.ConvTranspose2d(
+                self.n_classes, self.n_classes, 4, stride=2, bias=False
+            )
+            self.upscore8 = nn.ConvTranspose2d(
+                self.n_classes, self.n_classes, 16, stride=8, bias=False
+            )
 
         for m in self.modules():
             if isinstance(m, nn.ConvTranspose2d):
-                m.weight.data.copy_(get_upsampling_weight(m.in_channels, 
-                                                          m.out_channels, 
-                                                          m.kernel_size[0]))
-
+                m.weight.data.copy_(
+                    get_upsampling_weight(m.in_channels, m.out_channels, m.kernel_size[0])
+                )
 
     def forward(self, x):
         conv1 = self.conv_block1(x)
@@ -334,17 +332,19 @@ class fcn8s(nn.Module):
 
         if self.learned_billinear:
             upscore2 = self.upscore2(score)
-            score_pool4c = self.score_pool4(conv4)[:, :, 5:5+upscore2.size()[2],
-                                                         5:5+upscore2.size()[3]]
+            score_pool4c = self.score_pool4(conv4)[
+                :, :, 5 : 5 + upscore2.size()[2], 5 : 5 + upscore2.size()[3]
+            ]
             upscore_pool4 = self.upscore4(upscore2 + score_pool4c)
-            
-            score_pool3c = self.score_pool3(conv3)[:, :, 9:9+upscore_pool4.size()[2],
-                                                         9:9+upscore_pool4.size()[3]]
 
-            out = self.upscore8(score_pool3c + upscore_pool4)[:, :, 31:31+x.size()[2],
-                                                                    31:31+x.size()[3]]
+            score_pool3c = self.score_pool3(conv3)[
+                :, :, 9 : 9 + upscore_pool4.size()[2], 9 : 9 + upscore_pool4.size()[3]
+            ]
+
+            out = self.upscore8(score_pool3c + upscore_pool4)[
+                :, :, 31 : 31 + x.size()[2], 31 : 31 + x.size()[3]
+            ]
             return out.contiguous()
-                                                         
 
         else:
             score_pool4 = self.score_pool4(conv4)

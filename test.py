@@ -1,15 +1,9 @@
-import sys, os
+import os
 import torch
 import argparse
-import timeit
 import numpy as np
 import scipy.misc as misc
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.models as models
 
-from torch.utils import data
-from tqdm import tqdm
 
 from ptsemseg.models import get_model
 from ptsemseg.loader import get_loader, get_data_path
@@ -40,9 +34,7 @@ def test(args):
     loader = data_loader(data_path, is_transform=True, img_norm=args.img_norm)
     n_classes = loader.n_classes
 
-    resized_img = misc.imresize(
-        img, (loader.img_size[0], loader.img_size[1]), interp="bicubic"
-    )
+    resized_img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]), interp="bicubic")
 
     orig_size = img.shape[:-1]
     if model_name in ["pspnet", "icnet", "icnetBN"]:
@@ -159,11 +151,7 @@ if __name__ == "__main__":
         "--img_path", nargs="?", type=str, default=None, help="Path of the input image"
     )
     parser.add_argument(
-        "--out_path",
-        nargs="?",
-        type=str,
-        default=None,
-        help="Path of the output segmap",
+        "--out_path", nargs="?", type=str, default=None, help="Path of the output segmap"
     )
     args = parser.parse_args()
     test(args)

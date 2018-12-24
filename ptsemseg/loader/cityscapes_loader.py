@@ -6,7 +6,7 @@ import scipy.misc as m
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import *
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale, raw_input
 
 
 class cityscapesLoader(data.Dataset):
@@ -66,7 +66,7 @@ class cityscapesLoader(data.Dataset):
         :param split:
         :param is_transform:
         :param img_size:
-        :param augmentations 
+        :param augmentations
         """
         self.root = root
         self.split = split
@@ -74,16 +74,12 @@ class cityscapesLoader(data.Dataset):
         self.augmentations = augmentations
         self.img_norm = img_norm
         self.n_classes = 19
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array(self.mean_rgb[version])
         self.files = {}
 
         self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
-        self.annotations_base = os.path.join(
-            self.root, "gtFine", self.split
-        )
+        self.annotations_base = os.path.join(self.root, "gtFine", self.split)
 
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".png")
 
@@ -136,9 +132,7 @@ class cityscapesLoader(data.Dataset):
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
         if not self.files[split]:
-            raise Exception(
-                "No files for split=[%s] found in %s" % (split, self.images_base)
-            )
+            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
 
         print("Found %d %s images" % (len(self.files[split]), split))
 
@@ -178,9 +172,7 @@ class cityscapesLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -233,7 +225,6 @@ class cityscapesLoader(data.Dataset):
 
 
 if __name__ == "__main__":
-    import torchvision
     import matplotlib.pyplot as plt
 
     augmentations = Compose([Scale(2048), RandomRotate(10), RandomHorizontallyFlip(0.5)])
@@ -242,9 +233,11 @@ if __name__ == "__main__":
     dst = cityscapesLoader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)
-    for i, data in enumerate(trainloader):
-        imgs, labels = data
-        import pdb;pdb.set_trace()
+    for i, data_samples in enumerate(trainloader):
+        imgs, labels = data_samples
+        import pdb
+
+        pdb.set_trace()
         imgs = imgs.numpy()[:, ::-1, :, :]
         imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)

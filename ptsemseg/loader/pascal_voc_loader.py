@@ -72,18 +72,19 @@ class pascalVOCLoader(data.Dataset):
         self.n_classes = 21
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         for split in ["train", "val", "trainval"]:
             path = pjoin(self.root, "ImageSets/Segmentation", split + ".txt")
             file_list = tuple(open(path, "r"))
             file_list = [id_.rstrip() for id_ in file_list]
             self.files[split] = file_list
         self.setup_annotations()
-        self.tf = transforms.Compose([transforms.ToTensor(),
-                                      transforms.Normalize([0.485, 0.456, 0.406], 
-                                                           [0.229, 0.224, 0.225])])
+        self.tf = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
 
     def __len__(self):
         return len(self.files[self.split])
@@ -101,7 +102,7 @@ class pascalVOCLoader(data.Dataset):
         return im, lbl
 
     def transform(self, img, lbl):
-        if self.img_size == ('same', 'same'):
+        if self.img_size == ("same", "same"):
             pass
         else:
             img = img.resize((self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
@@ -208,9 +209,7 @@ class pascalVOCLoader(data.Dataset):
         train_aug = self.files["train"] + sbd_train_list
 
         # keep unique elements (stable)
-        train_aug = [
-            train_aug[i] for i in sorted(np.unique(train_aug, return_index=True)[1])
-        ]
+        train_aug = [train_aug[i] for i in sorted(np.unique(train_aug, return_index=True)[1])]
         self.files["train_aug"] = train_aug
         set_diff = set(self.files["val"]) - set(train_aug)  # remove overlap
         self.files["train_aug_val"] = list(set_diff)

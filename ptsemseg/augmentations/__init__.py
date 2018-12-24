@@ -1,22 +1,41 @@
 import logging
-from ptsemseg.augmentations.augmentations import *
+from ptsemseg.augmentations.augmentations import (
+    AdjustContrast,
+    AdjustGamma,
+    AdjustBrightness,
+    AdjustSaturation,
+    AdjustHue,
+    RandomCrop,
+    RandomHorizontallyFlip,
+    RandomVerticallyFlip,
+    Scale,
+    RandomSized,
+    RandomSizedCrop,
+    RandomRotate,
+    RandomTranslate,
+    CenterCrop,
+    Compose,
+)
 
-logger = logging.getLogger('ptsemseg')
+logger = logging.getLogger("ptsemseg")
 
-key2aug = {'gamma': AdjustGamma,
-           'hue': AdjustHue,
-           'brightness': AdjustBrightness,
-           'saturation': AdjustSaturation,
-           'contrast': AdjustContrast,
-           'rcrop': RandomCrop,
-           'hflip': RandomHorizontallyFlip,
-           'vflip': RandomVerticallyFlip,
-           'scale': Scale,
-           'rsize': RandomSized,
-           'rsizecrop': RandomSizedCrop,
-           'rotate': RandomRotate,
-           'translate': RandomTranslate,
-           'ccrop': CenterCrop,}
+key2aug = {
+    "gamma": AdjustGamma,
+    "hue": AdjustHue,
+    "brightness": AdjustBrightness,
+    "saturation": AdjustSaturation,
+    "contrast": AdjustContrast,
+    "rcrop": RandomCrop,
+    "hflip": RandomHorizontallyFlip,
+    "vflip": RandomVerticallyFlip,
+    "scale": Scale,
+    "rsize": RandomSized,
+    "rsizecrop": RandomSizedCrop,
+    "rotate": RandomRotate,
+    "translate": RandomTranslate,
+    "ccrop": CenterCrop,
+}
+
 
 def get_composed_augmentations(aug_dict):
     if aug_dict is None:
@@ -28,5 +47,3 @@ def get_composed_augmentations(aug_dict):
         augmentations.append(key2aug[aug_key](aug_param))
         logger.info("Using {} aug with params {}".format(aug_key, aug_param))
     return Compose(augmentations)
-
-

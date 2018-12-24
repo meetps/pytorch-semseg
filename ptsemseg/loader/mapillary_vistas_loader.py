@@ -2,16 +2,17 @@ import os
 import json
 import torch
 import numpy as np
-import scipy.misc as m
 
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import *
+from ptsemseg.augmentations import Compose, Image, RandomHorizontallyFlip, RandomRotate
+
 
 class mapillaryVistasLoader(data.Dataset):
-    def __init__(self, root, split="training", img_size=(640, 1280), 
-                 is_transform=True, augmentations=None):
+    def __init__(
+        self, root, split="training", img_size=(640, 1280), is_transform=True, augmentations=None
+    ):
         self.root = root
         self.split = split
         self.is_transform = is_transform
@@ -22,10 +23,10 @@ class mapillaryVistasLoader(data.Dataset):
         self.mean = np.array([80.5423, 91.3162, 81.4312])
         self.files = {}
 
-        self.images_base = os.path.join(self.root, self.split, 'images')
-        self.annotations_base = os.path.join(self.root, self.split, 'labels')
+        self.images_base = os.path.join(self.root, self.split, "images")
+        self.annotations_base = os.path.join(self.root, self.split, "labels")
 
-        self.files[split] = recursive_glob(rootdir=self.images_base, suffix='.jpg')
+        self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".jpg")
 
         self.class_ids, self.class_names, self.class_colors = self.parse_config()
 
@@ -37,10 +38,10 @@ class mapillaryVistasLoader(data.Dataset):
         print("Found %d %s images" % (len(self.files[split]), split))
 
     def parse_config(self):
-        with open(os.path.join(self.root, 'config.json')) as config_file:
+        with open(os.path.join(self.root, "config.json")) as config_file:
             config = json.load(config_file)
 
-        labels = config['labels']
+        labels = config["labels"]
 
         class_names = []
         class_ids = []
@@ -62,7 +63,9 @@ class mapillaryVistasLoader(data.Dataset):
         :param index:
         """
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = os.path.join(self.annotations_base, os.path.basename(img_path).replace(".jpg", ".png"))
+        lbl_path = os.path.join(
+            self.annotations_base, os.path.basename(img_path).replace(".jpg", ".png")
+        )
 
         img = Image.open(img_path)
         lbl = Image.open(lbl_path)
@@ -76,18 +79,18 @@ class mapillaryVistasLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        if self.img_size == ('same', 'same'):
+        if self.img_size == ("same", "same"):
             pass
-        else: 
-            img = img.resize((self.img_size[0], self.img_size[1]), 
-                              resample=Image.LANCZOS)  # uint8 with RGB mode
+        else:
+            img = img.resize(
+                (self.img_size[0], self.img_size[1]), resample=Image.LANCZOS
+            )  # uint8 with RGB mode
             lbl = lbl.resize((self.img_size[0], self.img_size[1]))
         img = np.array(img).astype(np.float64) / 255.0
         img = torch.from_numpy(img.transpose(2, 0, 1)).float()  # From HWC to CHW
         lbl = torch.from_numpy(np.array(lbl)).long()
         lbl[lbl == 65] = self.ignore_id
         return img, lbl
- 
 
     def decode_segmap(self, temp):
         r = temp.copy()
@@ -104,14 +107,16 @@ class mapillaryVistasLoader(data.Dataset):
         rgb[:, :, 2] = b / 255.0
         return rgb
 
-if __name__ == '__main__':
-    augment = Compose([RandomHorizontallyFlip(), 
-                       RandomRotate(6)])
 
-    local_path = '/private/home/meetshah/datasets/seg/vistas/'
-    dst = mapillaryVistasLoader(local_path, img_size=(512, 1024), is_transform=True, augmentations=augment)
+if __name__ == "__main__":
+    augment = Compose([RandomHorizontallyFlip(), RandomRotate(6)])
+
+    local_path = "/private/home/meetshah/datasets/seg/vistas/"
+    dst = mapillaryVistasLoader(
+        local_path, img_size=(512, 1024), is_transform=True, augmentations=augment
+    )
     bs = 8
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=4, shuffle=True)
-    for i, data in enumerate(trainloader):
-        x = dst.decode_segmap(data[1][0].numpy())
+    for i, data_samples in enumerate(trainloader):
+        x = dst.decode_segmap(data_samples[1][0].numpy())
         print("batch :", i)

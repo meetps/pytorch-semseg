@@ -1,10 +1,4 @@
-import torch
-
 from torch.optim.lr_scheduler import _LRScheduler
-from torch.optim.lr_scheduler import MultiStepLR 
-from torch.optim.lr_scheduler import ExponentialLR
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class ConstantLR(_LRScheduler):
@@ -16,8 +10,7 @@ class ConstantLR(_LRScheduler):
 
 
 class PolynomialLR(_LRScheduler):
-    def __init__(self, optimizer, max_iter, decay_iter=1, 
-                 gamma=0.9, last_epoch=-1):
+    def __init__(self, optimizer, max_iter, decay_iter=1, gamma=0.9, last_epoch=-1):
         self.decay_iter = decay_iter
         self.max_iter = max_iter
         self.gamma = gamma
@@ -28,11 +21,13 @@ class PolynomialLR(_LRScheduler):
             return [base_lr for base_lr in self.base_lrs]
         else:
             factor = (1 - self.last_epoch / float(self.max_iter)) ** self.gamma
-            return [base_lr * factor for base_lr in self.base_lrs] 
+            return [base_lr * factor for base_lr in self.base_lrs]
+
 
 class WarmUpLR(_LRScheduler):
-    def __init__(self, optimizer, scheduler, mode='linear', 
-                 warmup_iters=100, gamma=0.2, last_epoch=-1):
+    def __init__(
+        self, optimizer, scheduler, mode="linear", warmup_iters=100, gamma=0.2, last_epoch=-1
+    ):
         self.mode = mode
         self.scheduler = scheduler
         self.warmup_iters = warmup_iters
@@ -43,14 +38,14 @@ class WarmUpLR(_LRScheduler):
         cold_lrs = self.scheduler.get_lr()
 
         if self.last_epoch < self.warmup_iters:
-            if self.mode == 'linear':
+            if self.mode == "linear":
                 alpha = self.last_epoch / float(self.warmup_iters)
                 factor = self.gamma * (1 - alpha) + alpha
 
-            elif self.mode == 'constant': 
+            elif self.mode == "constant":
                 factor = self.gamma
             else:
-                raise KeyError('WarmUp type {} not implemented'.format(self.mode))
+                raise KeyError("WarmUp type {} not implemented".format(self.mode))
 
             return [factor * base_lr for base_lr in cold_lrs]
 

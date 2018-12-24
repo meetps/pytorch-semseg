@@ -1,20 +1,22 @@
 import torch
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 
-from math import ceil
 from torch.autograd import Variable
 
 from ptsemseg import caffe_pb2
-from ptsemseg.models.utils import *
-from ptsemseg.loss import *
+from ptsemseg.models.utils import (
+    get_interp_size,
+    cascadeFeatureFusion,
+    conv2DBatchNormRelu,
+    residualBlockPSP,
+    pyramidPooling,
+)
+from ptsemseg.loss.loss import multi_scale_cross_entropy2d
 
 icnet_specs = {
-    "cityscapes": {
-        "n_classes": 19,
-        "input_size": (1025, 2049),
-        "block_config": [3, 4, 6, 3],
-    }
+    "cityscapes": {"n_classes": 19, "input_size": (1025, 2049), "block_config": [3, 4, 6, 3]}
 }
 
 
@@ -37,24 +39,18 @@ class icnet(nn.Module):
         block_config=[3, 4, 6, 3],
         input_size=(1025, 2049),
         version=None,
-        with_bn=True,
+        is_batchnorm=True,
     ):
 
         super(icnet, self).__init__()
 
-        bias = not with_bn
+        bias = not is_batchnorm
 
         self.block_config = (
-            icnet_specs[version]["block_config"]
-            if version is not None
-            else block_config
+            icnet_specs[version]["block_config"] if version is not None else block_config
         )
-        self.n_classes = (
-            icnet_specs[version]["n_classes"] if version is not None else n_classes
-        )
-        self.input_size = (
-            icnet_specs[version]["input_size"] if version is not None else input_size
-        )
+        self.n_classes = icnet_specs[version]["n_classes"] if version is not None else n_classes
+        self.input_size = icnet_specs[version]["input_size"] if version is not None else input_size
 
         # Encoder
         self.convbnrelu1_1 = conv2DBatchNormRelu(
@@ -64,7 +60,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu1_2 = conv2DBatchNormRelu(
             in_channels=32,
@@ -73,7 +69,7 @@ class icnet(nn.Module):
             padding=1,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu1_3 = conv2DBatchNormRelu(
             in_channels=32,
@@ -82,12 +78,12 @@ class icnet(nn.Module):
             padding=1,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # Vanilla Residual Blocks
         self.res_block2 = residualBlockPSP(
-            self.block_config[0], 64, 32, 128, 1, 1, with_bn=with_bn
+            self.block_config[0], 64, 32, 128, 1, 1, is_batchnorm=is_batchnorm
         )
         self.res_block3_conv = residualBlockPSP(
             self.block_config[1],
@@ -97,7 +93,7 @@ class icnet(nn.Module):
             2,
             1,
             include_range="conv",
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.res_block3_identity = residualBlockPSP(
             self.block_config[1],
@@ -107,20 +103,20 @@ class icnet(nn.Module):
             2,
             1,
             include_range="identity",
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # Dilated Residual Blocks
         self.res_block4 = residualBlockPSP(
-            self.block_config[2], 256, 128, 512, 1, 2, with_bn=with_bn
+            self.block_config[2], 256, 128, 512, 1, 2, is_batchnorm=is_batchnorm
         )
         self.res_block5 = residualBlockPSP(
-            self.block_config[3], 512, 256, 1024, 1, 4, with_bn=with_bn
+            self.block_config[3], 512, 256, 1024, 1, 4, is_batchnorm=is_batchnorm
         )
 
         # Pyramid Pooling Module
         self.pyramid_pooling = pyramidPooling(
-            1024, [6, 3, 2, 1], model_name="icnet", fusion_mode="sum", with_bn=with_bn
+            1024, [6, 3, 2, 1], model_name="icnet", fusion_mode="sum", is_batchnorm=is_batchnorm
         )
 
         # Final conv layer with kernel 1 in sub4 branch
@@ -131,7 +127,7 @@ class icnet(nn.Module):
             padding=0,
             stride=1,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
 
         # High-resolution (sub1) branch
@@ -142,7 +138,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu2_sub1 = conv2DBatchNormRelu(
             in_channels=32,
@@ -151,7 +147,7 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.convbnrelu3_sub1 = conv2DBatchNormRelu(
             in_channels=32,
@@ -160,16 +156,16 @@ class icnet(nn.Module):
             padding=1,
             stride=2,
             bias=bias,
-            with_bn=with_bn,
+            is_batchnorm=is_batchnorm,
         )
         self.classification = nn.Conv2d(128, self.n_classes, 1, 1, 0)
 
         # Cascade Feature Fusion Units
         self.cff_sub24 = cascadeFeatureFusion(
-            self.n_classes, 256, 256, 128, with_bn=with_bn
+            self.n_classes, 256, 256, 128, is_batchnorm=is_batchnorm
         )
         self.cff_sub12 = cascadeFeatureFusion(
-            self.n_classes, 128, 64, 128, with_bn=with_bn
+            self.n_classes, 128, 64, 128, is_batchnorm=is_batchnorm
         )
 
         # Define auxiliary loss function
@@ -179,7 +175,9 @@ class icnet(nn.Module):
         h, w = x.shape[2:]
 
         # H, W -> H/2, W/2
-        x_sub2 = interp(x, output_size=get_interp_size(x, s_factor=2))
+        x_sub2 = F.interpolate(
+            x, size=get_interp_size(x, s_factor=2), mode="bilinear", align_corners=True
+        )
 
         # H/2, W/2 -> H/4, W/4
         x_sub2 = self.convbnrelu1_1(x_sub2)
@@ -193,7 +191,9 @@ class icnet(nn.Module):
         x_sub2 = self.res_block2(x_sub2)
         x_sub2 = self.res_block3_conv(x_sub2)
         # H/16, W/16 -> H/32, W/32
-        x_sub4 = interp(x_sub2, output_size=get_interp_size(x_sub2, s_factor=2))
+        x_sub4 = F.interpolate(
+            x_sub2, size=get_interp_size(x_sub2, s_factor=2), mode="bilinear", align_corners=True
+        )
         x_sub4 = self.res_block3_identity(x_sub4)
 
         x_sub4 = self.res_block4(x_sub4)
@@ -209,19 +209,21 @@ class icnet(nn.Module):
         x_sub24, sub4_cls = self.cff_sub24(x_sub4, x_sub2)
         x_sub12, sub24_cls = self.cff_sub12(x_sub24, x_sub1)
 
-        x_sub12 = F.upsample(
-            x_sub12, size=get_interp_size(x_sub12, z_factor=2), mode="bilinear"
+        x_sub12 = F.interpolate(
+            x_sub12, size=get_interp_size(x_sub12, z_factor=2), mode="bilinear", align_corners=True
         )
+        x_sub4 = self.res_block3_identity(x_sub4)
         sub124_cls = self.classification(x_sub12)
 
         if self.training:
-            return sub4_cls, sub24_cls, sub124_cls
-        else:  # eval mode
-            sub124_cls = F.upsample(
+            return (sub124_cls, sub24_cls, sub4_cls)
+        else:
+            sub124_cls = F.interpolate(
                 sub124_cls,
                 size=get_interp_size(sub124_cls, z_factor=4),
                 mode="bilinear",
-            )  # Test only
+                align_corners=True,
+            )
             return sub124_cls
 
     def load_pretrained_model(self, model_path):
@@ -257,9 +259,7 @@ class icnet(nn.Module):
                 return [weights, bias]
 
             elif ltype == "InnerProduct":
-                raise Exception(
-                    "Fully connected layers {}, not supported".format(ltype)
-                )
+                raise Exception("Fully connected layers {}, not supported".format(ltype))
 
             else:
                 raise Exception("Unkown layer type {}".format(ltype))
@@ -311,9 +311,7 @@ class icnet(nn.Module):
             if len(bias) != 0:
                 b_shape = np.array(module.bias.size())
                 print(
-                    "CONV {}: Original {} and trans bias {}".format(
-                        layer_name, b_shape, bias.shape
-                    )
+                    "CONV {}: Original {} and trans bias {}".format(layer_name, b_shape, bias.shape)
                 )
                 module.bias.data.copy_(torch.from_numpy(bias).view_as(module.bias))
 
@@ -324,15 +322,9 @@ class icnet(nn.Module):
                     conv_layer_name, bn_module.running_mean.size(), mean.shape
                 )
             )
-            bn_module.running_mean.copy_(
-                torch.from_numpy(mean).view_as(bn_module.running_mean)
-            )
-            bn_module.running_var.copy_(
-                torch.from_numpy(var).view_as(bn_module.running_var)
-            )
-            bn_module.weight.data.copy_(
-                torch.from_numpy(gamma).view_as(bn_module.weight)
-            )
+            bn_module.running_mean.copy_(torch.from_numpy(mean).view_as(bn_module.running_mean))
+            bn_module.running_var.copy_(torch.from_numpy(var).view_as(bn_module.running_var))
+            bn_module.weight.data.copy_(torch.from_numpy(gamma).view_as(bn_module.weight))
             bn_module.bias.data.copy_(torch.from_numpy(beta).view_as(bn_module.bias))
 
         def _transfer_conv_bn(conv_layer_name, mother_module):
@@ -347,9 +339,7 @@ class icnet(nn.Module):
             block_module, n_layers = block[0], block[1]
             prefix = block_name[:5]
 
-            if ("bottleneck" in block_name) or (
-                "identity" not in block_name
-            ):  # Conv block
+            if ("bottleneck" in block_name) or ("identity" not in block_name):  # Conv block
                 bottleneck = block_module.layers[0]
                 bottleneck_conv_bn_dic = {
                     prefix + "_1_1x1_reduce": bottleneck.cbr1.cbr_unit,
@@ -361,9 +351,7 @@ class icnet(nn.Module):
                 for k, v in bottleneck_conv_bn_dic.items():
                     _transfer_conv_bn(k, v)
 
-            if ("identity" in block_name) or (
-                "bottleneck" not in block_name
-            ):  # Identity blocks
+            if ("identity" in block_name) or ("bottleneck" not in block_name):  # Identity blocks
                 base_idx = 2 if "identity" in block_name else 1
 
                 for layer_idx in range(2, n_layers + 1):
@@ -443,12 +431,8 @@ class icnet(nn.Module):
         stride_x = (h - side_x) / float(n_x)
         stride_y = (w - side_y) / float(n_y)
 
-        x_ends = [
-            [int(i * stride_x), int(i * stride_x) + side_x] for i in range(n_x + 1)
-        ]
-        y_ends = [
-            [int(i * stride_y), int(i * stride_y) + side_y] for i in range(n_y + 1)
-        ]
+        x_ends = [[int(i * stride_x), int(i * stride_x) + side_x] for i in range(n_x + 1)]
+        y_ends = [[int(i * stride_y), int(i * stride_y) + side_y] for i in range(n_y + 1)]
 
         pred = np.zeros([n_samples, n_classes, h, w])
         count = np.zeros([h, w])
@@ -493,23 +477,22 @@ class icnet(nn.Module):
 if __name__ == "__main__":
     cd = 0
     import os
-    from torch.autograd import Variable
-    import matplotlib.pyplot as plt
     import scipy.misc as m
     from ptsemseg.loader.cityscapes_loader import cityscapesLoader as cl
 
-    ic = icnet(version="cityscapes", with_bn=False)
+    ic = icnet(version="cityscapes", is_batchnorm=False)
 
     # Just need to do this one time
     caffemodel_dir_path = "PATH_TO_ICNET_DIR/evaluation/model"
     ic.load_pretrained_model(
-        model_path=os.path.join(
-            caffemodel_dir_path, "icnet_cityscapes_train_30k.caffemodel"
-        )
+        model_path=os.path.join(caffemodel_dir_path, "icnet_cityscapes_train_30k.caffemodel")
     )
-    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'icnet_cityscapes_train_30k_bnnomerge.caffemodel'))
-    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'icnet_cityscapes_trainval_90k.caffemodel'))
-    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path, 'icnet_cityscapes_trainval_90k_bnnomerge.caffemodel'))
+    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path,
+    #                           'icnet_cityscapes_train_30k_bnnomerge.caffemodel'))
+    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path,
+    #                           'icnet_cityscapes_trainval_90k.caffemodel'))
+    # ic.load_pretrained_model(model_path=os.path.join(caffemodel_dir_path,
+    #                           'icnet_cityscapes_trainval_90k_bnnomerge.caffemodel'))
 
     # ic.load_state_dict(torch.load('ic.pth'))
 
@@ -548,9 +531,7 @@ if __name__ == "__main__":
         os.mkdir(checkpoints_dir_path)
     ic = torch.nn.DataParallel(ic, device_ids=range(torch.cuda.device_count()))
     state = {"model_state": ic.state_dict()}
-    torch.save(
-        state, os.path.join(checkpoints_dir_path, "icnet_cityscapes_train_30k.pth")
-    )
+    torch.save(state, os.path.join(checkpoints_dir_path, "icnet_cityscapes_train_30k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnetBN_cityscapes_train_30k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnet_cityscapes_trainval_90k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnetBN_cityscapes_trainval_90k.pth"))

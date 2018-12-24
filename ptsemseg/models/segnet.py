@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from ptsemseg.models.utils import *
+from ptsemseg.models.utils import segnetDown2, segnetDown3, segnetUp2, segnetUp3
 
 
 class segnet(nn.Module):
@@ -41,7 +41,6 @@ class segnet(nn.Module):
     def init_vgg16_params(self, vgg16):
         blocks = [self.down1, self.down2, self.down3, self.down4, self.down5]
 
-        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
         features = list(vgg16.features.children())
 
         vgg_layers = []

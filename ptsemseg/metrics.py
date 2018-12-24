@@ -12,16 +12,13 @@ class runningScore(object):
     def _fast_hist(self, label_true, label_pred, n_class):
         mask = (label_true >= 0) & (label_true < n_class)
         hist = np.bincount(
-            n_class * label_true[mask].astype(int) + label_pred[mask],
-            minlength=n_class ** 2,
+            n_class * label_true[mask].astype(int) + label_pred[mask], minlength=n_class ** 2
         ).reshape(n_class, n_class)
         return hist
 
     def update(self, label_trues, label_preds):
         for lt, lp in zip(label_trues, label_preds):
-            self.confusion_matrix += self._fast_hist(
-                lt.flatten(), lp.flatten(), self.n_classes
-            )
+            self.confusion_matrix += self._fast_hist(lt.flatten(), lp.flatten(), self.n_classes)
 
     def get_scores(self):
         """Returns accuracy score evaluation result.
@@ -54,9 +51,9 @@ class runningScore(object):
         self.confusion_matrix = np.zeros((self.n_classes, self.n_classes))
 
 
-
 class averageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -71,4 +68,3 @@ class averageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-

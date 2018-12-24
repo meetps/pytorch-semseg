@@ -1,26 +1,25 @@
 import os
 import collections
 import torch
-import torchvision
 import numpy as np
 import scipy.misc as m
-import scipy.io as io
-import matplotlib.pyplot as plt
 
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import *
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale, raw_input
 
 
 class NYUv2Loader(data.Dataset):
-    """NYUv2 loader
-    
-    Download From (only 13 classes): 
-        test source: http://www.doc.ic.ac.uk/~ahanda/nyu_test_rgb.tgz
-        train source: http://www.doc.ic.ac.uk/~ahanda/nyu_train_rgb.tgz
-        test_labels source: https://github.com/ankurhanda/nyuv2-meta-data/raw/master/test_labels_13/nyuv2_test_class13.tgz
-        train_labels source: https://github.com/ankurhanda/nyuv2-meta-data/raw/master/train_labels_13/nyuv2_train_class13.tgz
+    """
+    NYUv2 loader
+    Download From (only 13 classes):
+    test source: http://www.doc.ic.ac.uk/~ahanda/nyu_test_rgb.tgz
+    train source: http://www.doc.ic.ac.uk/~ahanda/nyu_train_rgb.tgz
+    test_labels source:
+      https://github.com/ankurhanda/nyuv2-meta-data/raw/master/test_labels_13/nyuv2_test_class13.tgz
+    train_labels source:
+      https://github.com/ankurhanda/nyuv2-meta-data/raw/master/train_labels_13/nyuv2_train_class13.tgz
 
     """
 
@@ -38,9 +37,7 @@ class NYUv2Loader(data.Dataset):
         self.n_classes = 14
         self.augmentations = augmentations
         self.img_norm = img_norm
-        self.img_size = (
-            img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        )
+        self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
         self.cmap = self.color_map(normalized=False)
@@ -80,9 +77,7 @@ class NYUv2Loader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(
-            img, (self.img_size[0], self.img_size[1])
-        )  # uint8 with RGB mode
+        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -144,7 +139,6 @@ class NYUv2Loader(data.Dataset):
 
 
 if __name__ == "__main__":
-    import torchvision
     import matplotlib.pyplot as plt
 
     augmentations = Compose([Scale(512), RandomRotate(10), RandomHorizontallyFlip()])
@@ -153,8 +147,8 @@ if __name__ == "__main__":
     dst = NYUv2Loader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)
-    for i, data in enumerate(trainloader):
-        imgs, labels = data
+    for i, datas in enumerate(trainloader):
+        imgs, labels = datas
         imgs = imgs.numpy()[:, ::-1, :, :]
         imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)
