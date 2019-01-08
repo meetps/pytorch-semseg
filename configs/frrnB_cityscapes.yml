@@ -1,0 +1,22 @@
+model:
+    arch: frrnB
+data:
+    dataset: cityscapes
+    train_split: train
+    val_split: val
+    img_rows: 512
+    img_cols: 1024
+    path: /private/home/meetshah/misc_code/ps/data/VOCdevkit/VOC2012/
+training:
+    train_iters: 85000
+    batch_size: 2
+    val_interval: 500
+    print_interval: 25
+    optimizer:
+        lr: 1.0e-4
+    l_rate: 1.0e-4
+    l_schedule:
+    momentum: 0.99
+    weight_decay: 0.0005
+    resume: frrnB_cityscapes_best_model.pkl
+    visdom: False
