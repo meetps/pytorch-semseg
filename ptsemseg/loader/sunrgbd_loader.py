@@ -30,7 +30,7 @@ class SUNRGBDLoader(data.Dataset):
         img_size=(480, 640),
         augmentations=None,
         img_norm=True,
-        test_mode=False
+        test_mode=False,
     ):
         self.root = root
         self.is_transform = is_transform

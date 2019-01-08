@@ -32,7 +32,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         img_size=512,
         augmentations=None,
         img_norm=True,
-        test_mode=False
+        test_mode=False,
     ):
         """__init__
 

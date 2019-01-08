@@ -31,14 +31,14 @@ class NYUv2Loader(data.Dataset):
         img_size=(480, 640),
         augmentations=None,
         img_norm=True,
-        test_mode=False
+        test_mode=False,
     ):
         self.root = root
         self.is_transform = is_transform
         self.n_classes = 14
         self.augmentations = augmentations
         self.img_norm = img_norm
-        self.test_mode = test_mode 
+        self.test_mode = test_mode
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)

@@ -6,7 +6,7 @@ import scipy.misc as m
 import matplotlib.pyplot as plt
 
 from torch.utils import data
-from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate 
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate
 
 
 class camvidLoader(data.Dataset):
@@ -18,7 +18,7 @@ class camvidLoader(data.Dataset):
         img_size=None,
         augmentations=None,
         img_norm=True,
-        test_mode=False
+        test_mode=False,
     ):
         self.root = root
         self.split = split
@@ -31,7 +31,7 @@ class camvidLoader(data.Dataset):
         self.n_classes = 12
         self.files = collections.defaultdict(list)
 
-        if not self.test_mode: 
+        if not self.test_mode:
             for split in ["train", "test", "val"]:
                 file_list = os.listdir(root + "/" + split)
                 self.files[split] = file_list

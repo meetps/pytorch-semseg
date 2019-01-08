@@ -6,7 +6,7 @@ import scipy.misc as m
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale 
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale
 
 
 class cityscapesLoader(data.Dataset):
@@ -59,7 +59,7 @@ class cityscapesLoader(data.Dataset):
         augmentations=None,
         img_norm=True,
         version="cityscapes",
-        test_mode=False
+        test_mode=False,
     ):
         """__init__
 
