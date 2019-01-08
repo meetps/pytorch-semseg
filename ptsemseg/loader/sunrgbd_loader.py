@@ -6,7 +6,7 @@ import scipy.misc as m
 from torch.utils import data
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale, raw_input
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale
 
 
 class SUNRGBDLoader(data.Dataset):
@@ -30,12 +30,14 @@ class SUNRGBDLoader(data.Dataset):
         img_size=(480, 640),
         augmentations=None,
         img_norm=True,
+        test_mode=False
     ):
         self.root = root
         self.is_transform = is_transform
         self.n_classes = 38
         self.augmentations = augmentations
         self.img_norm = img_norm
+        self.test_mode = test_mode
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
@@ -161,7 +163,7 @@ if __name__ == "__main__":
             axarr[j][0].imshow(imgs[j])
             axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
         plt.show()
-        a = raw_input()
+        a = input()
         if a == "ex":
             break
         else:

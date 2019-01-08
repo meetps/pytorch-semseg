@@ -4,14 +4,15 @@ import torch
 import numpy as np
 
 from torch.utils import data
+from PIL import Image
 
 from ptsemseg.utils import recursive_glob
-from ptsemseg.augmentations import Compose, Image, RandomHorizontallyFlip, RandomRotate
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate
 
 
 class mapillaryVistasLoader(data.Dataset):
     def __init__(
-        self, root, split="training", img_size=(640, 1280), is_transform=True, augmentations=None
+        self, root, split="training", img_size=(640, 1280), is_transform=True, augmentations=None, test_mode=False
     ):
         self.root = root
         self.split = split

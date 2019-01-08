@@ -6,7 +6,7 @@ import scipy.misc as m
 import matplotlib.pyplot as plt
 
 from torch.utils import data
-from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate, raw_input
+from ptsemseg.augmentations import Compose, RandomHorizontallyFlip, RandomRotate 
 
 
 class camvidLoader(data.Dataset):
@@ -18,6 +18,7 @@ class camvidLoader(data.Dataset):
         img_size=None,
         augmentations=None,
         img_norm=True,
+        test_mode=False
     ):
         self.root = root
         self.split = split
@@ -25,13 +26,15 @@ class camvidLoader(data.Dataset):
         self.is_transform = is_transform
         self.augmentations = augmentations
         self.img_norm = img_norm
+        self.test_mode = test_mode
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.n_classes = 12
         self.files = collections.defaultdict(list)
 
-        for split in ["train", "test", "val"]:
-            file_list = os.listdir(root + "/" + split)
-            self.files[split] = file_list
+        if not self.test_mode: 
+            for split in ["train", "test", "val"]:
+                file_list = os.listdir(root + "/" + split)
+                self.files[split] = file_list
 
     def __len__(self):
         return len(self.files[self.split])
@@ -132,7 +135,7 @@ if __name__ == "__main__":
             axarr[j][0].imshow(imgs[j])
             axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
         plt.show()
-        a = raw_input()
+        a = input()
         if a == "ex":
             break
         else:

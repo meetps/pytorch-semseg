@@ -15,20 +15,6 @@ from torch.utils import data
 from torchvision import transforms
 
 
-def get_data_path(name):
-    """Extract path to data from config file.
-
-    Args:
-        name (str): The name of the dataset.
-
-    Returns:
-        (str): The path to the root directory containing the dataset.
-    """
-    js = open("config.json").read()
-    data = json.loads(js)
-    return os.path.expanduser(data[name]["data_path"])
-
-
 class pascalVOCLoader(data.Dataset):
     """Data loader for the Pascal VOC semantic segmentation dataset.
 
@@ -58,27 +44,34 @@ class pascalVOCLoader(data.Dataset):
     def __init__(
         self,
         root,
+        sbd_path=None,
         split="train_aug",
         is_transform=False,
         img_size=512,
         augmentations=None,
         img_norm=True,
+        test_mode=False,
     ):
-        self.root = os.path.expanduser(root)
+        self.root = root
+        self.sbd_path = sbd_path
         self.split = split
         self.is_transform = is_transform
         self.augmentations = augmentations
         self.img_norm = img_norm
+        self.test_mode = test_mode
         self.n_classes = 21
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
-        for split in ["train", "val", "trainval"]:
-            path = pjoin(self.root, "ImageSets/Segmentation", split + ".txt")
-            file_list = tuple(open(path, "r"))
-            file_list = [id_.rstrip() for id_ in file_list]
-            self.files[split] = file_list
-        self.setup_annotations()
+
+        if not self.test_mode:
+            for split in ["train", "val", "trainval"]:
+                path = pjoin(self.root, "ImageSets/Segmentation", split + ".txt")
+                file_list = tuple(open(path, "r"))
+                file_list = [id_.rstrip() for id_ in file_list]
+                self.files[split] = file_list
+            self.setup_annotations()
+
         self.tf = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -199,7 +192,7 @@ class pascalVOCLoader(data.Dataset):
         function also defines the `train_aug` and `train_aug_val` data splits
         according to the description in the class docstring
         """
-        sbd_path = get_data_path("sbd")
+        sbd_path = self.sbd_path
         target_path = pjoin(self.root, "SegmentationClass/pre_encoded")
         if not os.path.exists(target_path):
             os.makedirs(target_path)

@@ -6,7 +6,7 @@ import scipy.misc as misc
 
 
 from ptsemseg.models import get_model
-from ptsemseg.loader import get_loader, get_data_path
+from ptsemseg.loader import get_loader
 from ptsemseg.utils import convert_state_dict
 
 try:
@@ -30,8 +30,7 @@ def test(args):
     img = misc.imread(args.img_path)
 
     data_loader = get_loader(args.dataset)
-    data_path = get_data_path(args.dataset)
-    loader = data_loader(data_path, is_transform=True, img_norm=args.img_norm)
+    loader = data_loader(root=None, is_transform=True, img_norm=args.img_norm, test_mode=True)
     n_classes = loader.n_classes
 
     resized_img = misc.imresize(img, (loader.img_size[0], loader.img_size[1]), interp="bicubic")
@@ -55,7 +54,8 @@ def test(args):
     img = torch.from_numpy(img).float()
 
     # Setup Model
-    model = get_model(model_name, n_classes, version=args.dataset)
+    model_dict = {"arch": model_name}
+    model = get_model(model_dict, n_classes, version=args.dataset)
     state = convert_state_dict(torch.load(args.model_path)["model_state"])
     model.load_state_dict(state)
     model.eval()

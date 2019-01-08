@@ -26,7 +26,7 @@ class frrn(nn.Module):
     2) TF implementation by @kiwonjoon: https://github.com/hiwonjoon/tf-frrn
     """
 
-    def __init__(self, n_classes=21, model_type=None, group_norm=False, n_groups=16):
+    def __init__(self, n_classes=21, model_type='B', group_norm=False, n_groups=16):
         super(frrn, self).__init__()
         self.n_classes = n_classes
         self.model_type = model_type
