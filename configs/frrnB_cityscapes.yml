@@ -6,7 +6,7 @@ data:
     val_split: val
     img_rows: 512
     img_cols: 1024
-    path: /Users/hovo/Downloads/dataset/
+    path: /home/hovo/datasets
 training:
     n_workers: 64
     train_iters: 85000
