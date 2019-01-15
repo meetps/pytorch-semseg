@@ -79,10 +79,15 @@ class cityscapesLoader(data.Dataset):
         self.mean = np.array(self.mean_rgb[version])
         self.files = {}
 
-        self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
-        self.annotations_base = os.path.join(self.root, "gtFine", self.split)
+        if not test_mode:
+            self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
+            self.annotations_base = os.path.join(self.root, "gtFine", self.split)
+            self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".png")
+            
+            print("Found %d %s images" % (len(self.files[split]), split))
 
-        self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".png")
+            if not self.files[split]:
+                raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
 
         self.void_classes = [0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15, 16, 18, 29, 30, -1]
         self.valid_classes = [
@@ -131,11 +136,6 @@ class cityscapesLoader(data.Dataset):
 
         self.ignore_index = 250
         self.class_map = dict(zip(self.valid_classes, range(19)))
-
-        if not self.files[split]:
-            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
-
-        print("Found %d %s images" % (len(self.files[split]), split))
 
     def __len__(self):
         """__len__"""
