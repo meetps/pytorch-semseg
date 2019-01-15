@@ -56,7 +56,7 @@ def test(args):
     # Setup Model
     model_dict = {"arch": model_name}
     model = get_model(model_dict, n_classes, version=args.dataset)
-    state = convert_state_dict(torch.load(args.model_path)["model_state"])
+    state = convert_state_dict(torch.load(args.model_path, map_location=device)["model_state"])
     model.load_state_dict(state)
     model.eval()
     model.to(device)
