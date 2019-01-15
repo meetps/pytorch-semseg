@@ -9,14 +9,14 @@ data:
     path: /home/hovo/datasets
 training:
     n_workers: 64
-    train_iters: 85000
+    train_iters: 45000
     batch_size: 2
     val_interval: 500
     print_interval: 25
     optimizer:
-        name: sgd
-        lr: 1.0e-4
-    l_rate: 1.0e-4
+        name: adam
+        lr: 0.001
+    l_rate: 0.001
     loss:
         name: 'cross_entropy'
         size_average: True
