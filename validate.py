@@ -38,7 +38,7 @@ def validate(cfg, args):
     # Setup Model
 
     model = get_model(cfg["model"], n_classes).to(device)
-    state = convert_state_dict(torch.load(args.model_path)["model_state"])
+    state = convert_state_dict(torch.load(args.model_path, map_location=device)["model_state"])
     model.load_state_dict(state)
     model.eval()
     model.to(device)
