@@ -207,7 +207,7 @@ if __name__ == "__main__":
         "--config",
         nargs="?",
         type=str,
-        default="configs/fcn8s_pascal.yml",
+        default="configs/frrnB_cityscapes.yml",
         help="Configuration file to use",
     )
 

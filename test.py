@@ -104,7 +104,7 @@ if __name__ == "__main__":
         "--model_path",
         nargs="?",
         type=str,
-        default="fcn8s_pascal_1_26.pkl",
+        default="frrnB_cityscapes_best_model.pkl",
         help="Path to the saved model",
     )
     parser.add_argument(
