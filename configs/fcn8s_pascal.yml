@@ -4,8 +4,8 @@ data:
     dataset: pascal
     train_split: train_aug
     val_split: val
-    img_rows: 'same'
-    img_cols: 'same'
+    img_rows: 128
+    img_cols: 128
     path: /private/home/meetshah/datasets/VOC/060817/VOCdevkit/VOC2012/
     sbd_path: /private/home/meetshah/datasets/VOC/benchmark_RELEASE/
 training:
