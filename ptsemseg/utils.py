@@ -38,6 +38,8 @@ def convert_state_dict(state_dict):
        module state_dict inplace
        :param state_dict is the loaded DataParallel model_state
     """
+    if not next(iter(state_dict)).startswith("module."):
+        return state_dict  # abort if dict is not a DataParallel model_state
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
         name = k[7:]  # remove `module.`
