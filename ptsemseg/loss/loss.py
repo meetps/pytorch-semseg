@@ -27,7 +27,7 @@ def multi_scale_cross_entropy2d(input, target, weight=None, size_average=True, s
         n_inp = len(input)
         scale = 0.4
         scale_weight = torch.pow(scale * torch.ones(n_inp), torch.arange(n_inp).float()).to(
-            input.device
+            target.device
         )
 
     loss = 0.0
