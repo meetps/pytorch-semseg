@@ -2,14 +2,16 @@
 FROM nvidia/cuda:9.0-devel
 
 RUN apt-get update && apt-get install -y \
-    git python3-dev python3-tk python3-pip
-
-WORKDIR /opt/semseg
-
+    git python3-dev python3-tk python3-pip nano
 RUN pip3 install --upgrade pip
-ADD requirements.txt /opt/semseg/requirements.txt
-RUN pip3 install -r requirements.txt
 
-COPY . .
+WORKDIR /opt/app
 
-ENTRYPOINT ["python3", "train.py", "--config", "configs/fcn8s_pascal.yml"]
+ADD requirements.txt /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
+RUN rm /tmp/requirements.txt
+
+RUN adduser --disabled-password --gecos "" app
+
+RUN chown -R app:app /opt/app
+USER app
