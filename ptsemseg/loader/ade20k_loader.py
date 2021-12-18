@@ -2,6 +2,7 @@ import collections
 import torch
 import torchvision
 import numpy as np
+import cv2
 import scipy.misc as m
 import matplotlib.pyplot as plt
 
@@ -46,10 +47,10 @@ class ADE20KLoader(data.Dataset):
         img_path = self.files[self.split][index].rstrip()
         lbl_path = img_path[:-4] + "_seg.png"
 
-        img = plt.imread(img_path)
+        img = cv2.imread(img_path)
         img = np.array(img, dtype=np.uint8)
 
-        lbl = m.imread(lbl_path)
+        lbl = cv2.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.int32)
 
         if self.augmentations is not None:
@@ -61,7 +62,7 @@ class ADE20KLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
+        img = cv2.resize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -75,7 +76,7 @@ class ADE20KLoader(data.Dataset):
         lbl = self.encode_segmap(lbl)
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
+        lbl = cv2.resize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
         lbl = lbl.astype(int)
         assert np.all(classes == np.unique(lbl))
 
