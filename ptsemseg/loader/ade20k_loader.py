@@ -46,7 +46,7 @@ class ADE20KLoader(data.Dataset):
         img_path = self.files[self.split][index].rstrip()
         lbl_path = img_path[:-4] + "_seg.png"
 
-        img = m.imread(img_path)
+        img = plt.imread(img_path)
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
