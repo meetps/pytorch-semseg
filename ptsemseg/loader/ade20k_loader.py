@@ -45,7 +45,7 @@ class ADE20KLoader(data.Dataset):
 
     def __getitem__(self, index):
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = img_path[:-4] + "_seg.png"
+        lbl_path = img_path[:-4] + ".png"
         print("img_path",img_path)
         print("lbl_path",lbl_path)
 
