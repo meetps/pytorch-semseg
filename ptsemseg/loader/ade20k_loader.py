@@ -30,7 +30,7 @@ class ADE20KLoader(data.Dataset):
         self.augmentations = augmentations
         self.img_norm = img_norm
         self.test_mode = test_mode
-        self.n_classes = 150
+        self.n_classes = img_size[0] if isinstance(img_size, tuple) else img_size
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
         """
