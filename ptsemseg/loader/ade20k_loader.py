@@ -2,6 +2,8 @@ import collections
 import torch
 import torchvision
 import numpy as np
+import cv2
+from pathlib import Path
 import scipy.misc as m
 import matplotlib.pyplot as plt
 
@@ -22,34 +24,42 @@ class ADE20KLoader(data.Dataset):
         test_mode=False,
     ):
         self.root = root
-        self.split = split
+        assert split in ['training', 'validation']
+        self.split = 'training' if split == 'training' else 'validation'
         self.is_transform = is_transform
         self.augmentations = augmentations
         self.img_norm = img_norm
         self.test_mode = test_mode
-        self.n_classes = 150
+        self.n_classes = img_size[0] if isinstance(img_size, tuple) else img_size
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array([104.00699, 116.66877, 122.67892])
+        """
         self.files = collections.defaultdict(list)
-
         if not self.test_mode:
             for split in ["training", "validation"]:
                 file_list = recursive_glob(
                     rootdir=self.root + "images/" + self.split + "/", suffix=".jpg"
                 )
                 self.files[split] = file_list
+        """
+        img_path = Path(self.root + 'images/' + self.split)  
+        self.files = list(img_path.glob('*.jpg'))
+    
+        if not self.files:
+            raise Exception(f"No images found in {img_path}")
+        print(f"Found {len(self.files)} {split} images.")
 
     def __len__(self):
-        return len(self.files[self.split])
+        return len(self.files)
 
     def __getitem__(self, index):
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = img_path[:-4] + "_seg.png"
+        lbl_path = img_path.replace('images','annotations')[:-4] + ".png"
 
-        img = m.imread(img_path)
+        img = cv2.imread(img_path)
         img = np.array(img, dtype=np.uint8)
 
-        lbl = m.imread(lbl_path)
+        lbl = cv2.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.int32)
 
         if self.augmentations is not None:
@@ -61,7 +71,7 @@ class ADE20KLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
+        img = cv2.resize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
         img -= self.mean
@@ -75,9 +85,10 @@ class ADE20KLoader(data.Dataset):
         lbl = self.encode_segmap(lbl)
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
+        #lbl = cv2.resize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
+        lbl = cv2.resize(lbl, (self.img_size[0], self.img_size[1]))
         lbl = lbl.astype(int)
-        assert np.all(classes == np.unique(lbl))
+        #assert np.all(classes == np.unique(lbl))
 
         img = torch.from_numpy(img).float()
         lbl = torch.from_numpy(lbl).long()

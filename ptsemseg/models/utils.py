@@ -401,7 +401,7 @@ class FRRU(nn.Module):
 
         x = self.conv_res(y_prime)
         upsample_size = torch.Size([_s * self.scale for _s in y_prime.shape[-2:]])
-        x = F.upsample(x, size=upsample_size, mode="nearest")
+        x = F.interpolate(x, size=upsample_size, mode="nearest")
         z_prime = z + x
 
         return y_prime, z_prime
@@ -482,14 +482,14 @@ class multiResolutionFusion(nn.Module):
             self.conv_low = nn.Conv2d(low_shape[1], channels, kernel_size=3)
 
     def forward(self, x_high, x_low):
-        high_upsampled = F.upsample(
+        high_upsampled = F.interpolate(
             self.conv_high(x_high), scale_factor=self.up_scale_high, mode="bilinear"
         )
 
         if x_low is None:
             return high_upsampled
 
-        low_upsampled = F.upsample(
+        low_upsampled = F.interpolate(
             self.conv_low(x_low), scale_factor=self.up_scale_low, mode="bilinear"
         )
 
