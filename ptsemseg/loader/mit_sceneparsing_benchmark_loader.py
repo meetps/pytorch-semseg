@@ -57,7 +57,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".jpg")
 
         if not self.files[split]:
-            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
+            raise Exception(f"No files for split=[{split}] found in {self.images_base}")
 
         print("Found %d %s images" % (len(self.files[split]), split))
 
@@ -71,7 +71,9 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param index:
         """
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = os.path.join(self.annotations_base, os.path.basename(img_path)[:-4] + ".png")
+        lbl_path = os.path.join(
+            self.annotations_base, f"{os.path.basename(img_path)[:-4]}.png"
+        )
 
         img = m.imread(img_path, mode="RGB")
         img = np.array(img, dtype=np.uint8)
@@ -93,9 +95,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
         :param img:
         :param lbl:
         """
-        if self.img_size == ("same", "same"):
-            pass
-        else:
+        if self.img_size != ("same", "same"):
             img = m.imresize(img, (self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
         img = img[:, :, ::-1]  # RGB -> BGR
         img = img.astype(np.float64)
@@ -109,9 +109,7 @@ class MITSceneParsingBenchmarkLoader(data.Dataset):
 
         classes = np.unique(lbl)
         lbl = lbl.astype(float)
-        if self.img_size == ("same", "same"):
-            pass
-        else:
+        if self.img_size != ("same", "same"):
             lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
         lbl = lbl.astype(int)
 

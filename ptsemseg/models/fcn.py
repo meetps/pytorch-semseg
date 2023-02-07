@@ -83,9 +83,7 @@ class fcn32s(nn.Module):
 
         score = self.classifier(conv5)
 
-        out = F.upsample(score, x.size()[2:])
-
-        return out
+        return F.upsample(score, x.size()[2:])
 
     def init_vgg16_params(self, vgg16, copy_fc8=True):
         blocks = [
@@ -200,9 +198,7 @@ class fcn16s(nn.Module):
 
         score = F.upsample(score, score_pool4.size()[2:])
         score += score_pool4
-        out = F.upsample(score, x.size()[2:])
-
-        return out
+        return F.upsample(score, x.size()[2:])
 
     def init_vgg16_params(self, vgg16, copy_fc8=True):
         blocks = [

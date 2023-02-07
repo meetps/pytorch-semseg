@@ -6,7 +6,7 @@ class ConstantLR(_LRScheduler):
         super(ConstantLR, self).__init__(optimizer, last_epoch)
 
     def get_lr(self):
-        return [base_lr for base_lr in self.base_lrs]
+        return list(self.base_lrs)
 
 
 class PolynomialLR(_LRScheduler):
@@ -18,10 +18,9 @@ class PolynomialLR(_LRScheduler):
 
     def get_lr(self):
         if self.last_epoch % self.decay_iter or self.last_epoch % self.max_iter:
-            return [base_lr for base_lr in self.base_lrs]
-        else:
-            factor = (1 - self.last_epoch / float(self.max_iter)) ** self.gamma
-            return [base_lr * factor for base_lr in self.base_lrs]
+            return list(self.base_lrs)
+        factor = (1 - self.last_epoch / float(self.max_iter)) ** self.gamma
+        return [base_lr * factor for base_lr in self.base_lrs]
 
 
 class WarmUpLR(_LRScheduler):
@@ -45,7 +44,7 @@ class WarmUpLR(_LRScheduler):
             elif self.mode == "constant":
                 factor = self.gamma
             else:
-                raise KeyError("WarmUp type {} not implemented".format(self.mode))
+                raise KeyError(f"WarmUp type {self.mode} not implemented")
 
             return [factor * base_lr for base_lr in cold_lrs]
 

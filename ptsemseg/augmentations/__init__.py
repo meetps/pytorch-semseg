@@ -45,5 +45,5 @@ def get_composed_augmentations(aug_dict):
     augmentations = []
     for aug_key, aug_param in aug_dict.items():
         augmentations.append(key2aug[aug_key](aug_param))
-        logger.info("Using {} aug with params {}".format(aug_key, aug_param))
+        logger.info(f"Using {aug_key} aug with params {aug_param}")
     return Compose(augmentations)

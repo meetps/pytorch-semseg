@@ -26,7 +26,7 @@ def test(args):
     model_name = model_file_name[: model_file_name.find("_")]
 
     # Setup image
-    print("Read Input Image from : {}".format(args.img_path))
+    print(f"Read Input Image from : {args.img_path}")
     img = misc.imread(args.img_path)
 
     data_loader = get_loader(args.dataset)
@@ -82,9 +82,9 @@ def test(args):
         q = d.inference(50)
         mask = np.argmax(q, axis=0).reshape(w, h).transpose(1, 0)
         decoded_crf = loader.decode_segmap(np.array(mask, dtype=np.uint8))
-        dcrf_path = args.out_path[:-4] + "_drf.png"
+        dcrf_path = f"{args.out_path[:-4]}_drf.png"
         misc.imsave(dcrf_path, decoded_crf)
-        print("Dense CRF Processed Mask Saved at: {}".format(dcrf_path))
+        print(f"Dense CRF Processed Mask Saved at: {dcrf_path}")
 
     pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
     if model_name in ["pspnet", "icnet", "icnetBN"]:
@@ -95,7 +95,7 @@ def test(args):
     decoded = loader.decode_segmap(pred)
     print("Classes found: ", np.unique(pred))
     misc.imsave(args.out_path, decoded)
-    print("Segmentation Mask Saved at: {}".format(args.out_path))
+    print(f"Segmentation Mask Saved at: {args.out_path}")
 
 
 if __name__ == "__main__":

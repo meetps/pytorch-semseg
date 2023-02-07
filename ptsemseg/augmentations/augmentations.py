@@ -157,13 +157,8 @@ class RandomTranslate(object):
         x_offset = int(2 * (random.random() - 0.5) * self.offset[0])
         y_offset = int(2 * (random.random() - 0.5) * self.offset[1])
 
-        x_crop_offset = x_offset
-        y_crop_offset = y_offset
-        if x_offset < 0:
-            x_crop_offset = 0
-        if y_offset < 0:
-            y_crop_offset = 0
-
+        x_crop_offset = max(x_offset, 0)
+        y_crop_offset = max(y_offset, 0)
         cropped_img = tf.crop(
             img,
             y_crop_offset,
@@ -175,13 +170,13 @@ class RandomTranslate(object):
         if x_offset >= 0 and y_offset >= 0:
             padding_tuple = (0, 0, x_offset, y_offset)
 
-        elif x_offset >= 0 and y_offset < 0:
+        elif x_offset >= 0:
             padding_tuple = (0, abs(y_offset), x_offset, 0)
 
-        elif x_offset < 0 and y_offset >= 0:
+        elif y_offset >= 0:
             padding_tuple = (abs(x_offset), 0, 0, y_offset)
 
-        elif x_offset < 0 and y_offset < 0:
+        else:
             padding_tuple = (abs(x_offset), abs(y_offset), 0, 0)
 
         return (
@@ -237,11 +232,11 @@ class Scale(object):
         if w > h:
             ow = self.size
             oh = int(self.size * h / w)
-            return (img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST))
         else:
             oh = self.size
             ow = int(self.size * w / h)
-            return (img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST))
+
+        return (img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST))
 
 
 class RandomSizedCrop(object):
@@ -250,7 +245,7 @@ class RandomSizedCrop(object):
 
     def __call__(self, img, mask):
         assert img.size == mask.size
-        for attempt in range(10):
+        for _ in range(10):
             area = img.size[0] * img.size[1]
             target_area = random.uniform(0.45, 1.0) * area
             aspect_ratio = random.uniform(0.5, 2)

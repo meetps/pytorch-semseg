@@ -23,7 +23,7 @@ def get_scheduler(optimizer, scheduler_dict):
     s_type = scheduler_dict["name"]
     scheduler_dict.pop("name")
 
-    logging.info("Using {} scheduler with {} params".format(s_type, scheduler_dict))
+    logging.info(f"Using {s_type} scheduler with {scheduler_dict} params")
 
     warmup_dict = {}
     if "warmup_iters" in scheduler_dict:
@@ -33,9 +33,7 @@ def get_scheduler(optimizer, scheduler_dict):
         warmup_dict["gamma"] = scheduler_dict.get("warmup_factor", 0.2)
 
         logger.info(
-            "Using Warmup with {} iters {} gamma and {} mode".format(
-                warmup_dict["warmup_iters"], warmup_dict["gamma"], warmup_dict["mode"]
-            )
+            f'Using Warmup with {warmup_dict["warmup_iters"]} iters {warmup_dict["gamma"]} gamma and {warmup_dict["mode"]} mode'
         )
 
         scheduler_dict.pop("warmup_iters", None)

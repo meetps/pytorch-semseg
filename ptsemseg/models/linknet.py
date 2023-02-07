@@ -66,11 +66,9 @@ class linknet(nn.Module):
                 ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers = [block(self.inplanes, planes, stride, downsample)]
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+        layers.extend(block(self.inplanes, planes) for _ in range(1, blocks))
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -95,6 +93,4 @@ class linknet(nn.Module):
         # Final Classification
         f1 = self.finaldeconvbnrelu1(d1)
         f2 = self.finalconvbnrelu2(f1)
-        f3 = self.finalconv3(f2)
-
-        return f3
+        return self.finalconv3(f2)

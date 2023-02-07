@@ -43,11 +43,7 @@ class segnet(nn.Module):
 
         features = list(vgg16.features.children())
 
-        vgg_layers = []
-        for _layer in features:
-            if isinstance(_layer, nn.Conv2d):
-                vgg_layers.append(_layer)
-
+        vgg_layers = [_layer for _layer in features if isinstance(_layer, nn.Conv2d)]
         merged_layers = []
         for idx, conv_block in enumerate(blocks):
             if idx < 2:
@@ -59,10 +55,9 @@ class segnet(nn.Module):
                     conv_block.conv3.cbr_unit,
                 ]
             for _unit in units:
-                for _layer in _unit:
-                    if isinstance(_layer, nn.Conv2d):
-                        merged_layers.append(_layer)
-
+                merged_layers.extend(
+                    _layer for _layer in _unit if isinstance(_layer, nn.Conv2d)
+                )
         assert len(vgg_layers) == len(merged_layers)
 
         for l1, l2 in zip(vgg_layers, merged_layers):

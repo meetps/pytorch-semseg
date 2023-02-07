@@ -133,7 +133,7 @@ class cityscapesLoader(data.Dataset):
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
         if not self.files[split]:
-            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
+            raise Exception(f"No files for split=[{split}] found in {self.images_base}")
 
         print("Found %d %s images" % (len(self.files[split]), split))
 
@@ -150,7 +150,7 @@ class cityscapesLoader(data.Dataset):
         lbl_path = os.path.join(
             self.annotations_base,
             img_path.split(os.sep)[-2],
-            os.path.basename(img_path)[:-15] + "gtFine_labelIds.png",
+            f"{os.path.basename(img_path)[:-15]}gtFine_labelIds.png",
         )
 
         img = m.imread(img_path)
@@ -205,7 +205,7 @@ class cityscapesLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = self.label_colours[l][0]
             g[temp == l] = self.label_colours[l][1]
             b[temp == l] = self.label_colours[l][2]

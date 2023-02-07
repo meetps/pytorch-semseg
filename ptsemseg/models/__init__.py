@@ -63,4 +63,4 @@ def _get_model_instance(name):
             "frrnB": frrn,
         }[name]
     except:
-        raise ("Model {} not available".format(name))
+        raise f"Model {name} not available"

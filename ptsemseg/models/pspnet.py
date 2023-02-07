@@ -112,10 +112,7 @@ class pspnet(nn.Module):
         x = self.classification(x)
         x = F.interpolate(x, size=inp_shape, mode="bilinear", align_corners=True)
 
-        if self.training:
-            return (x, x_aux)
-        else:  # eval mode
-            return x
+        return (x, x_aux) if self.training else x
 
     def load_pretrained_model(self, model_path):
         """
@@ -172,7 +169,7 @@ class pspnet(nn.Module):
             if isinstance(module, nn.BatchNorm2d):
                 module.affine = False
 
-            if len([m for m in module.children()]) > 0:
+            if list(module.children()):
                 for child in module.children():
                     _no_affine_bn(child)
 
@@ -203,7 +200,7 @@ class pspnet(nn.Module):
 
             _transfer_conv(conv_layer_name, conv_module)
 
-            mean, var, gamma, beta = layer_params[conv_layer_name + "/bn"]
+            mean, var, gamma, beta = layer_params[f"{conv_layer_name}/bn"]
             print(
                 "BN {}: Original {} and trans weights {}".format(
                     conv_layer_name, bn_module.running_mean.size(), mean.shape
@@ -219,10 +216,10 @@ class pspnet(nn.Module):
 
             bottleneck = block_module.layers[0]
             bottleneck_conv_bn_dic = {
-                prefix + "_1_1x1_reduce": bottleneck.cbr1.cbr_unit,
-                prefix + "_1_3x3": bottleneck.cbr2.cbr_unit,
-                prefix + "_1_1x1_proj": bottleneck.cb4.cb_unit,
-                prefix + "_1_1x1_increase": bottleneck.cb3.cb_unit,
+                f"{prefix}_1_1x1_reduce": bottleneck.cbr1.cbr_unit,
+                f"{prefix}_1_3x3": bottleneck.cbr2.cbr_unit,
+                f"{prefix}_1_1x1_proj": bottleneck.cb4.cb_unit,
+                f"{prefix}_1_1x1_increase": bottleneck.cb3.cb_unit,
             }
 
             for k, v in bottleneck_conv_bn_dic.items():
@@ -252,8 +249,8 @@ class pspnet(nn.Module):
             "conv5_3_pool2_conv": self.pyramid_pooling.paths[2].cbr_unit,
             "conv5_3_pool1_conv": self.pyramid_pooling.paths[3].cbr_unit,
             "conv5_4": self.cbr_final.cbr_unit,
-            "conv4_" + str(self.block_config[2] + 1): self.convbnrelu4_aux.cbr_unit,
-        }  # Auxiliary layers for training
+            f"conv4_{str(self.block_config[2] + 1)}": self.convbnrelu4_aux.cbr_unit,
+        }
 
         residual_layers = {
             "conv2": [self.res_block2, self.block_config[0]],
@@ -395,4 +392,4 @@ if __name__ == "__main__":
     torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_101_cityscapes.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_50_ade20k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "pspnet_101_pascalvoc.pth"))
-    print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
+    print(f"Output Shape {out.shape} \t Input Shape {img.shape}")

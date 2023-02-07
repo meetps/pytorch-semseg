@@ -58,7 +58,7 @@ class NYUv2Loader(data.Dataset):
         img_path = self.files[self.split][index].rstrip()
         img_number = img_path.split("_")[-1][:4]
         lbl_path = os.path.join(
-            self.root, self.split + "_annot", "new_nyu_class13_" + img_number + ".png"
+            self.root, f"{self.split}_annot", f"new_nyu_class13_{img_number}.png"
         )
 
         img = m.imread(img_path)
@@ -67,7 +67,7 @@ class NYUv2Loader(data.Dataset):
         lbl = m.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.uint8)
 
-        if not (len(img.shape) == 3 and len(lbl.shape) == 2):
+        if len(img.shape) != 3 or len(lbl.shape) != 2:
             return self.__getitem__(np.random.randint(0, self.__len__()))
 
         if self.augmentations is not None:
@@ -128,7 +128,7 @@ class NYUv2Loader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = self.cmap[l, 0]
             g[temp == l] = self.cmap[l, 1]
             b[temp == l] = self.cmap[l, 2]
