@@ -40,7 +40,7 @@ class mapillaryVistasLoader(data.Dataset):
         self.ignore_id = 250
 
         if not self.files[split]:
-            raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
+            raise Exception(f"No files for split=[{split}] found in {self.images_base}")
 
         print("Found %d %s images" % (len(self.files[split]), split))
 
@@ -53,7 +53,7 @@ class mapillaryVistasLoader(data.Dataset):
         class_names = []
         class_ids = []
         class_colors = []
-        print("There are {} labels in the config file".format(len(labels)))
+        print(f"There are {len(labels)} labels in the config file")
         for label_id, label in enumerate(labels):
             class_names.append(label["readable"])
             class_ids.append(label_id)
@@ -86,9 +86,7 @@ class mapillaryVistasLoader(data.Dataset):
         return img, lbl
 
     def transform(self, img, lbl):
-        if self.img_size == ("same", "same"):
-            pass
-        else:
+        if self.img_size != ("same", "same"):
             img = img.resize(
                 (self.img_size[0], self.img_size[1]), resample=Image.LANCZOS
             )  # uint8 with RGB mode
@@ -103,7 +101,7 @@ class mapillaryVistasLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = self.class_colors[l][0]
             g[temp == l] = self.class_colors[l][1]
             b[temp == l] = self.class_colors[l][2]

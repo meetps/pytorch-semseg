@@ -28,7 +28,7 @@ def get_loss_function(cfg):
         loss_params = {k: v for k, v in loss_dict.items() if k != "name"}
 
         if loss_name not in key2loss:
-            raise NotImplementedError("Loss {} not implemented".format(loss_name))
+            raise NotImplementedError(f"Loss {loss_name} not implemented")
 
-        logger.info("Using {} with {} params".format(loss_name, loss_params))
+        logger.info(f"Using {loss_name} with {loss_params} params")
         return functools.partial(key2loss[loss_name], **loss_params)

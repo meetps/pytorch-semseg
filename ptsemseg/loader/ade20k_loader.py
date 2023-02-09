@@ -35,7 +35,7 @@ class ADE20KLoader(data.Dataset):
         if not self.test_mode:
             for split in ["training", "validation"]:
                 file_list = recursive_glob(
-                    rootdir=self.root + "images/" + self.split + "/", suffix=".jpg"
+                    rootdir=f"{self.root}images/{self.split}/", suffix=".jpg"
                 )
                 self.files[split] = file_list
 
@@ -44,7 +44,7 @@ class ADE20KLoader(data.Dataset):
 
     def __getitem__(self, index):
         img_path = self.files[self.split][index].rstrip()
-        lbl_path = img_path[:-4] + "_seg.png"
+        lbl_path = f"{img_path[:-4]}_seg.png"
 
         img = m.imread(img_path)
         img = np.array(img, dtype=np.uint8)
@@ -96,7 +96,7 @@ class ADE20KLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = 10 * (l % 10)
             g[temp == l] = l
             b[temp == l] = 0
@@ -105,11 +105,10 @@ class ADE20KLoader(data.Dataset):
         rgb[:, :, 0] = r / 255.0
         rgb[:, :, 1] = g / 255.0
         rgb[:, :, 2] = b / 255.0
-        if plot:
-            plt.imshow(rgb)
-            plt.show()
-        else:
+        if not plot:
             return rgb
+        plt.imshow(rgb)
+        plt.show()
 
 
 if __name__ == "__main__":

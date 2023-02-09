@@ -217,14 +217,13 @@ class icnet(nn.Module):
 
         if self.training:
             return (sub124_cls, sub24_cls, sub4_cls)
-        else:
-            sub124_cls = F.interpolate(
-                sub124_cls,
-                size=get_interp_size(sub124_cls, z_factor=4),
-                mode="bilinear",
-                align_corners=True,
-            )
-            return sub124_cls
+        sub124_cls = F.interpolate(
+            sub124_cls,
+            size=get_interp_size(sub124_cls, z_factor=4),
+            mode="bilinear",
+            align_corners=True,
+        )
+        return sub124_cls
 
     def load_pretrained_model(self, model_path):
         """
@@ -290,7 +289,7 @@ class icnet(nn.Module):
             if isinstance(module, nn.BatchNorm2d):
                 module.affine = False
 
-            if len([m for m in module.children()]) > 0:
+            if list(module.children()):
                 for child in module.children():
                     _no_affine_bn(child)
 
@@ -316,7 +315,7 @@ class icnet(nn.Module):
                 module.bias.data.copy_(torch.from_numpy(bias).view_as(module.bias))
 
         def _transfer_bn(conv_layer_name, bn_module):
-            mean, var, gamma, beta = layer_params[conv_layer_name + "/bn"]
+            mean, var, gamma, beta = layer_params[f"{conv_layer_name}/bn"]
             print(
                 "BN {}: Original {} and trans weights {}".format(
                     conv_layer_name, bn_module.running_mean.size(), mean.shape
@@ -331,7 +330,7 @@ class icnet(nn.Module):
             conv_module = mother_module[0]
             _transfer_conv(conv_layer_name, conv_module)
 
-            if conv_layer_name + "/bn" in layer_params.keys():
+            if f"{conv_layer_name}/bn" in layer_params:
                 bn_module = mother_module[1]
                 _transfer_bn(conv_layer_name, bn_module)
 
@@ -342,10 +341,10 @@ class icnet(nn.Module):
             if ("bottleneck" in block_name) or ("identity" not in block_name):  # Conv block
                 bottleneck = block_module.layers[0]
                 bottleneck_conv_bn_dic = {
-                    prefix + "_1_1x1_reduce": bottleneck.cbr1.cbr_unit,
-                    prefix + "_1_3x3": bottleneck.cbr2.cbr_unit,
-                    prefix + "_1_1x1_proj": bottleneck.cb4.cb_unit,
-                    prefix + "_1_1x1_increase": bottleneck.cb3.cb_unit,
+                    f"{prefix}_1_1x1_reduce": bottleneck.cbr1.cbr_unit,
+                    f"{prefix}_1_3x3": bottleneck.cbr2.cbr_unit,
+                    f"{prefix}_1_1x1_proj": bottleneck.cb4.cb_unit,
+                    f"{prefix}_1_1x1_increase": bottleneck.cb3.cb_unit,
                 }
 
                 for k, v in bottleneck_conv_bn_dic.items():
@@ -535,4 +534,4 @@ if __name__ == "__main__":
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnetBN_cityscapes_train_30k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnet_cityscapes_trainval_90k.pth"))
     # torch.save(state, os.path.join(checkpoints_dir_path, "icnetBN_cityscapes_trainval_90k.pth"))
-    print("Output Shape {} \t Input Shape {}".format(out.shape, img.shape))
+    print(f"Output Shape {out.shape} \t Input Shape {img.shape}")

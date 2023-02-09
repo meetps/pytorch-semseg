@@ -33,7 +33,7 @@ class camvidLoader(data.Dataset):
 
         if not self.test_mode:
             for split in ["train", "test", "val"]:
-                file_list = os.listdir(root + "/" + split)
+                file_list = os.listdir(f"{root}/{split}")
                 self.files[split] = file_list
 
     def __len__(self):
@@ -41,8 +41,8 @@ class camvidLoader(data.Dataset):
 
     def __getitem__(self, index):
         img_name = self.files[self.split][index]
-        img_path = self.root + "/" + self.split + "/" + img_name
-        lbl_path = self.root + "/" + self.split + "annot/" + img_name
+        img_path = f"{self.root}/{self.split}/{img_name}"
+        lbl_path = f"{self.root}/{self.split}annot/{img_name}"
 
         img = m.imread(img_path)
         img = np.array(img, dtype=np.uint8)
@@ -107,7 +107,7 @@ class camvidLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = label_colours[l, 0]
             g[temp == l] = label_colours[l, 1]
             b[temp == l] = label_colours[l, 2]

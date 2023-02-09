@@ -81,18 +81,18 @@ def train(cfg, writer, logger):
     optimizer_params = {k: v for k, v in cfg["training"]["optimizer"].items() if k != "name"}
 
     optimizer = optimizer_cls(model.parameters(), **optimizer_params)
-    logger.info("Using optimizer {}".format(optimizer))
+    logger.info(f"Using optimizer {optimizer}")
 
     scheduler = get_scheduler(optimizer, cfg["training"]["lr_schedule"])
 
     loss_fn = get_loss_function(cfg)
-    logger.info("Using loss {}".format(loss_fn))
+    logger.info(f"Using loss {loss_fn}")
 
     start_iter = 0
     if cfg["training"]["resume"] is not None:
         if os.path.isfile(cfg["training"]["resume"]):
             logger.info(
-                "Loading model and optimizer from checkpoint '{}'".format(cfg["training"]["resume"])
+                f"""Loading model and optimizer from checkpoint '{cfg["training"]["resume"]}'"""
             )
             checkpoint = torch.load(cfg["training"]["resume"])
             model.load_state_dict(checkpoint["model_state"])
@@ -100,12 +100,10 @@ def train(cfg, writer, logger):
             scheduler.load_state_dict(checkpoint["scheduler_state"])
             start_iter = checkpoint["epoch"]
             logger.info(
-                "Loaded checkpoint '{}' (iter {})".format(
-                    cfg["training"]["resume"], checkpoint["epoch"]
-                )
+                f"""Loaded checkpoint '{cfg["training"]["resume"]}' (iter {start_iter})"""
             )
         else:
-            logger.info("No checkpoint found at '{}'".format(cfg["training"]["resume"]))
+            logger.info(f"""No checkpoint found at '{cfg["training"]["resume"]}'""")
 
     val_loss_meter = averageMeter()
     time_meter = averageMeter()
@@ -171,12 +169,12 @@ def train(cfg, writer, logger):
                 score, class_iou = running_metrics_val.get_scores()
                 for k, v in score.items():
                     print(k, v)
-                    logger.info("{}: {}".format(k, v))
-                    writer.add_scalar("val_metrics/{}".format(k), v, i + 1)
+                    logger.info(f"{k}: {v}")
+                    writer.add_scalar(f"val_metrics/{k}", v, i + 1)
 
                 for k, v in class_iou.items():
-                    logger.info("{}: {}".format(k, v))
-                    writer.add_scalar("val_metrics/cls_{}".format(k), v, i + 1)
+                    logger.info(f"{k}: {v}")
+                    writer.add_scalar(f"val_metrics/cls_{k}", v, i + 1)
 
                 val_loss_meter.reset()
                 running_metrics_val.reset()
@@ -192,7 +190,7 @@ def train(cfg, writer, logger):
                     }
                     save_path = os.path.join(
                         writer.file_writer.get_logdir(),
-                        "{}_{}_best_model.pkl".format(cfg["model"]["arch"], cfg["data"]["dataset"]),
+                        f'{cfg["model"]["arch"]}_{cfg["data"]["dataset"]}_best_model.pkl',
                     )
                     torch.save(state, save_path)
 
@@ -220,7 +218,7 @@ if __name__ == "__main__":
     logdir = os.path.join("runs", os.path.basename(args.config)[:-4], str(run_id))
     writer = SummaryWriter(log_dir=logdir)
 
-    print("RUNDIR: {}".format(logdir))
+    print(f"RUNDIR: {logdir}")
     shutil.copy(args.config, logdir)
 
     logger = get_logger(logdir)

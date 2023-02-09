@@ -53,7 +53,9 @@ class SUNRGBDLoader(data.Dataset):
 
         for split in ["train", "test"]:
             file_list = sorted(
-                recursive_glob(rootdir=self.root + "annotations/" + split + "/", suffix="png")
+                recursive_glob(
+                    rootdir=f"{self.root}annotations/{split}/", suffix="png"
+                )
             )
             self.anno_files[split] = file_list
 
@@ -72,7 +74,7 @@ class SUNRGBDLoader(data.Dataset):
         lbl = m.imread(lbl_path)
         lbl = np.array(lbl, dtype=np.uint8)
 
-        if not (len(img.shape) == 3 and len(lbl.shape) == 2):
+        if len(img.shape) != 3 or len(lbl.shape) != 2:
             return self.__getitem__(np.random.randint(0, self.__len__()))
 
         if self.augmentations is not None:
@@ -133,7 +135,7 @@ class SUNRGBDLoader(data.Dataset):
         r = temp.copy()
         g = temp.copy()
         b = temp.copy()
-        for l in range(0, self.n_classes):
+        for l in range(self.n_classes):
             r[temp == l] = self.cmap[l, 0]
             g[temp == l] = self.cmap[l, 1]
             b[temp == l] = self.cmap[l, 2]

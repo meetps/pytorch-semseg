@@ -23,7 +23,7 @@ def get_optimizer(cfg):
     else:
         opt_name = cfg["training"]["optimizer"]["name"]
         if opt_name not in key2opt:
-            raise NotImplementedError("Optimizer {} not implemented".format(opt_name))
+            raise NotImplementedError(f"Optimizer {opt_name} not implemented")
 
-        logger.info("Using {} optimizer".format(opt_name))
+        logger.info(f"Using {opt_name} optimizer")
         return key2opt[opt_name]

@@ -66,7 +66,7 @@ class pascalVOCLoader(data.Dataset):
 
         if not self.test_mode:
             for split in ["train", "val", "trainval"]:
-                path = pjoin(self.root, "ImageSets/Segmentation", split + ".txt")
+                path = pjoin(self.root, "ImageSets/Segmentation", f"{split}.txt")
                 file_list = tuple(open(path, "r"))
                 file_list = [id_.rstrip() for id_ in file_list]
                 self.files[split] = file_list
@@ -84,8 +84,8 @@ class pascalVOCLoader(data.Dataset):
 
     def __getitem__(self, index):
         im_name = self.files[self.split][index]
-        im_path = pjoin(self.root, "JPEGImages", im_name + ".jpg")
-        lbl_path = pjoin(self.root, "SegmentationClass/pre_encoded", im_name + ".png")
+        im_path = pjoin(self.root, "JPEGImages", f"{im_name}.jpg")
+        lbl_path = pjoin(self.root, "SegmentationClass/pre_encoded", f"{im_name}.png")
         im = Image.open(im_path)
         lbl = Image.open(lbl_path)
         if self.augmentations is not None:
@@ -95,9 +95,7 @@ class pascalVOCLoader(data.Dataset):
         return im, lbl
 
     def transform(self, img, lbl):
-        if self.img_size == ("same", "same"):
-            pass
-        else:
+        if self.img_size != ("same", "same"):
             img = img.resize((self.img_size[0], self.img_size[1]))  # uint8 with RGB mode
             lbl = lbl.resize((self.img_size[0], self.img_size[1]))
         img = self.tf(img)
@@ -171,7 +169,7 @@ class pascalVOCLoader(data.Dataset):
         r = label_mask.copy()
         g = label_mask.copy()
         b = label_mask.copy()
-        for ll in range(0, self.n_classes):
+        for ll in range(self.n_classes):
             r[label_mask == ll] = label_colours[ll, 0]
             g[label_mask == ll] = label_colours[ll, 1]
             b[label_mask == ll] = label_colours[ll, 2]
@@ -179,11 +177,10 @@ class pascalVOCLoader(data.Dataset):
         rgb[:, :, 0] = r / 255.0
         rgb[:, :, 1] = g / 255.0
         rgb[:, :, 2] = b / 255.0
-        if plot:
-            plt.imshow(rgb)
-            plt.show()
-        else:
+        if not plot:
             return rgb
+        plt.imshow(rgb)
+        plt.show()
 
     def setup_annotations(self):
         """Sets up Berkley annotations by adding image indices to the
@@ -213,14 +210,14 @@ class pascalVOCLoader(data.Dataset):
         if len(pre_encoded) != expected:
             print("Pre-encoding segmentation masks...")
             for ii in tqdm(sbd_train_list):
-                lbl_path = pjoin(sbd_path, "dataset/cls", ii + ".mat")
+                lbl_path = pjoin(sbd_path, "dataset/cls", f"{ii}.mat")
                 data = io.loadmat(lbl_path)
                 lbl = data["GTcls"][0]["Segmentation"][0].astype(np.int32)
                 lbl = m.toimage(lbl, high=lbl.max(), low=lbl.min())
-                m.imsave(pjoin(target_path, ii + ".png"), lbl)
+                m.imsave(pjoin(target_path, f"{ii}.png"), lbl)
 
             for ii in tqdm(self.files["trainval"]):
-                fname = ii + ".png"
+                fname = f"{ii}.png"
                 lbl_path = pjoin(self.root, "SegmentationClass", fname)
                 lbl = self.encode_segmap(m.imread(lbl_path))
                 lbl = m.toimage(lbl, high=lbl.max(), low=lbl.min())

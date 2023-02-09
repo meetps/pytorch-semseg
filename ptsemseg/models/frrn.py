@@ -40,7 +40,7 @@ class frrn(nn.Module):
 
         self.up_residual_units = []
         self.down_residual_units = []
-        for i in range(3):
+        for _ in range(3):
             self.up_residual_units.append(
                 RU(
                     channels=48,
